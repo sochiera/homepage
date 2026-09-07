@@ -1,0 +1,24 @@
+:root { --bg:#fff; --fg:#1c2024; --muted:#5a6068; --accent:#2f5d8a; --rule:#d9dce0; }
+@media (prefers-color-scheme: dark) { :root { --bg:#16181b; --fg:#e4e6e9; --muted:#9aa0a8; --accent:#8db4d9; --rule:#34383d; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:1.0625rem; line-height:1.6; }
+main { max-width:40rem; margin:0 auto; padding:3rem 1.25rem 4rem; }
+h1 { font-size:1.75rem; margin:0 0 .25rem; } h2 { font-size:1.125rem; margin:0 0 .75rem; }
+header { border-bottom:1px solid var(--rule); padding-bottom:1.5rem; margin-bottom:2rem; }
+.tagline,.meta,.stories p,.prose .chapter-name,.prose .sep { color:var(--muted); }
+.tagline,.entry,.stories p { margin:0; } section { margin-bottom:2.25rem; }
+a { color:var(--accent); text-decoration-thickness:1px; text-underline-offset:.15em; } a:hover { text-decoration-thickness:2px; }
+ul { list-style:none; margin:0; padding:0; }
+.projects li,.career>li,.links li,.stories li { padding:.5rem 0; border-bottom:1px solid var(--rule); }
+.projects li:last-child,.career>li:last-child,.links li:last-child,.stories li:last-child { border-bottom:0; }
+.projects a,.stories a { font-weight:600; }
+.entry,.career .roles li { display:flex; justify-content:space-between; gap:.25rem 1rem; flex-wrap:wrap; }
+.meta { font-variant-numeric:tabular-nums; } .career .roles { margin-top:.25rem; }
+.career .roles li { padding:.25rem 0; font-size:.9375rem; color:var(--muted); }
+.back,footer { font-size:.9375rem; } .back { margin:0 0 .5rem; } footer { border-top:1px solid var(--rule); margin-top:2.5rem; padding-top:1rem; }
+.stories p { margin-top:.25rem; } .prose { line-height:1.7; } .prose p { margin:0 0 1rem; }
+.prose .chapter { text-align:center; font-size:1.25rem; margin:2.5rem 0 .25rem; }
+.prose .chapter-name { text-align:center; font-weight:600; margin:0 0 1.5rem; }
+.prose .sep { text-align:center; margin:1.75rem 0; }
+.prose hr { border:0; border-top:1px solid var(--rule); width:4rem; margin:2.25rem auto; }
+@media (max-width:30rem) { main { padding-top:2rem; } .entry,.career .roles li { display:block; } .meta { display:block; } }

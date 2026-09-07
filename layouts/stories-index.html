@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<header><p class="back"><a href="/">{{ "Startseite" if lang == "de" else "Strona główna" }}</a></p><h1>{{ "Erzählungen" if lang == "de" else "Opowiadania" }}</h1></header>
+<ul class="stories">{% for story in stories %}<li><a href="{{ story.url }}">{{ story.title }}</a><p>{{ story.description }}</p></li>{% endfor %}</ul>
+<footer><a href="/">{{ "Startseite" if lang == "de" else "Strona główna" }}</a></footer>
+{% endblock %}

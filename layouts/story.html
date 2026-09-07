@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<header><p class="back"><a href="/">{{ "Startseite" if lang == "de" else "Strona główna" }}</a> · <a href="{{ '/de/opowiadania/' if lang == 'de' else '/opowiadania/' }}">{{ "Erzählungen" if lang == "de" else "Opowiadania" }}</a></p><h1 id="{{ story.slug }}">{{ story.title }}</h1>{% if translation %}<p><a href="{{ translation.url }}">{{ "Polnische Version" if lang == "de" else "Wersja niemiecka" }}</a></p>{% endif %}</header>
+<article class="prose">{{ body }}</article>
+<footer><a href="/">{{ "Startseite" if lang == "de" else "Strona główna" }}</a> · <a href="{{ '/de/opowiadania/' if lang == 'de' else '/opowiadania/' }}">{{ "Erzählungen" if lang == "de" else "Opowiadania" }}</a>{% if translation %} · <a href="{{ translation.url }}">{{ "Polnische Version" if lang == "de" else "Wersja niemiecka" }}</a>{% endif %}</footer>
+{% endblock %}

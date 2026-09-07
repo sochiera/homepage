@@ -1,0 +1,33 @@
+schema_version = 1
+
+[[stories]]
+language = "pl"
+slug = "dobry-ojciec"
+url = "/opowiadania/dobry-ojciec/"
+title = "Dobry Ojciec"
+expected_h1 = "Dobry Ojciec"
+description = "Opowiadanie Jana Sochiery."
+profile = "chaptered"
+source = "Dobry_Ojciec/opowiadanie.md"
+translation = "der-gute-vater"
+
+[[stories]]
+language = "pl"
+slug = "kartka"
+url = "/opowiadania/kartka/"
+title = "Kartka"
+expected_h1 = "Kartka"
+description = "Opowiadanie Jana Sochiery."
+profile = "standard"
+source = "Kartka/kartka.md"
+
+[[stories]]
+language = "de"
+slug = "der-gute-vater"
+url = "/de/opowiadania/der-gute-vater/"
+title = "Der gute Vater"
+expected_h1 = "Der gute Vater"
+description = "Eine Erzählung von Jan Sochiera."
+profile = "chaptered"
+source = "Dobry_Ojciec/der_gute_vater.md"
+translation = "dobry-ojciec"
