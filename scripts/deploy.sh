@@ -71,7 +71,7 @@ package_release() {
 
 upload_release() {
   scp -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$PACKAGE" "$EXPECTED_HOST:/tmp/homepage-$RELEASE_ID.tar.gz"
-  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; umask 022; sudo -n mkdir -p '$RELEASE_DIR/.stage-$RELEASE_ID'; sudo -n tar -xzf '/tmp/homepage-$RELEASE_ID.tar.gz' -C '$RELEASE_DIR/.stage-$RELEASE_ID'; find '$RELEASE_DIR/.stage-$RELEASE_ID' -type l -o -type b -o -type c | grep . && exit 1 || true; python3 - '$RELEASE_DIR/.stage-$RELEASE_ID' <<'PY'
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; umask 022; sudo -n mkdir -p '$RELEASE_DIR/.stage-$RELEASE_ID'; sudo -n tar -xzf '/tmp/homepage-$RELEASE_ID.tar.gz' -C '$RELEASE_DIR/.stage-$RELEASE_ID'; sudo -n chmod -R a+rX '$RELEASE_DIR/.stage-$RELEASE_ID'; find '$RELEASE_DIR/.stage-$RELEASE_ID' -type l -o -type b -o -type c | grep . && exit 1 || true; python3 - '$RELEASE_DIR/.stage-$RELEASE_ID' <<'PY'
 import hashlib,json,pathlib,sys
 r=pathlib.Path(sys.argv[1]); m=json.loads((r/'build-manifest.json').read_text())
 assert all((r/i['path']).is_file() and hashlib.sha256((r/i['path']).read_bytes()).hexdigest()==i['sha256'] for i in m['artifacts'])
