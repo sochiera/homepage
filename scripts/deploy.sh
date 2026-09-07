@@ -71,7 +71,7 @@ package_release() {
 
 upload_release() {
   scp -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$PACKAGE" "$EXPECTED_HOST:/tmp/homepage-$RELEASE_ID.tar.gz"
-  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; umask 022; mkdir -p '$RELEASE_DIR/.stage-$RELEASE_ID'; tar -xzf '/tmp/homepage-$RELEASE_ID.tar.gz' -C '$RELEASE_DIR/.stage-$RELEASE_ID'; find '$RELEASE_DIR/.stage-$RELEASE_ID' -type l -o -type b -o -type c | grep . && exit 1 || true; python3 - '$RELEASE_DIR/.stage-$RELEASE_ID' <<'PY'
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; umask 022; sudo -n mkdir -p '$RELEASE_DIR/.stage-$RELEASE_ID'; sudo -n tar -xzf '/tmp/homepage-$RELEASE_ID.tar.gz' -C '$RELEASE_DIR/.stage-$RELEASE_ID'; find '$RELEASE_DIR/.stage-$RELEASE_ID' -type l -o -type b -o -type c | grep . && exit 1 || true; python3 - '$RELEASE_DIR/.stage-$RELEASE_ID' <<'PY'
 import hashlib,json,pathlib,sys
 r=pathlib.Path(sys.argv[1]); m=json.loads((r/'build-manifest.json').read_text())
 assert all((r/i['path']).is_file() and hashlib.sha256((r/i['path']).read_bytes()).hexdigest()==i['sha256'] for i in m['artifacts'])
@@ -84,7 +84,7 @@ backup_current() {
 }
 
 switch_release() {
-  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; mkdir -p '$RELEASE_DIR'; flock '$RELEASE_DIR/.lock' sh -c 'mv "$DOCROOT" "$RELEASE_DIR/backup-$RELEASE_ID"; if ! mv "$RELEASE_DIR/.stage-$RELEASE_ID" "$DOCROOT"; then mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"; exit 1; fi'"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; sudo -n mkdir -p '$RELEASE_DIR'; sudo -n flock '$RELEASE_DIR/.lock' sh -c 'mv "$DOCROOT" "$RELEASE_DIR/backup-$RELEASE_ID"; if ! mv "$RELEASE_DIR/.stage-$RELEASE_ID" "$DOCROOT"; then mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"; exit 1; fi'"
 }
 
 verify_release() {
@@ -115,12 +115,12 @@ PY
 }
 
 restore_backup() {
-  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; flock '$RELEASE_DIR/.lock' sh -c 'test -d "$RELEASE_DIR/backup-$RELEASE_ID"; mv "$DOCROOT" "$RELEASE_DIR/failed-$RELEASE_ID"; mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"'"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; sudo -n flock '$RELEASE_DIR/.lock' sh -c 'test -d "$RELEASE_DIR/backup-$RELEASE_ID"; mv "$DOCROOT" "$RELEASE_DIR/failed-$RELEASE_ID"; mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"'"
 }
 
 manual_rollback() {
   local target="$RELEASE_DIR/backup-$ROLLBACK" failed_id="$(date -u +%Y%m%dT%H%M%SZ)-rollback"
-  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; test -d '$target'; flock '$RELEASE_DIR/.lock' sh -c 'mv "$DOCROOT" "$RELEASE_DIR/failed-$failed_id"; mv "$target" "$DOCROOT"'"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; test -d '$target'; sudo -n flock '$RELEASE_DIR/.lock' sh -c 'mv "$DOCROOT" "$RELEASE_DIR/failed-$failed_id"; mv "$target" "$DOCROOT"'"
   verify_release || die "rollback verification failed"
 }
 

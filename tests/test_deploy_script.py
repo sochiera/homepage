@@ -41,5 +41,6 @@ def test_script_contains_ordered_safety_gates_and_rollback():
     positions = [text.rfind(name) for name in ordered]
     assert positions == sorted(positions) and min(positions) >= 0
     assert "restore_backup" in text and "flock" in text
+    assert "sudo -n mkdir" in text and "sudo -n flock" in text
     assert "malowanie-po-numerach" in text and "/api/pbn-" in text
     assert "--rollback" in text and "RELEASE_RE=" in text
