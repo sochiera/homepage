@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly EXPECTED_HOST="old-vps"
+readonly EXPECTED_HOST="ubuntu@51.83.199.206"
+readonly IDENTITY_FILE="${HOME}/.ssh/pbn_vps"
 readonly DOCROOT="/var/www/sochiera"
 readonly RELEASE_DIR="/var/www/sochiera-releases"
 readonly RELEASE_RE='^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$'
@@ -9,7 +10,7 @@ readonly BUILD_DIR=".build/site"
 HOST=""; YES=0; ROLLBACK=""
 
 die() { echo "deploy: $*" >&2; exit 1; }
-usage() { echo "usage: scripts/deploy.sh --host old-vps [--yes] [--rollback RELEASE_ID]"; }
+usage() { echo "usage: scripts/deploy.sh --host ubuntu@51.83.199.206 [--yes] [--rollback RELEASE_ID]"; }
 
 while (($#)); do
   case "$1" in
@@ -20,7 +21,7 @@ while (($#)); do
     *) die "unknown argument: $1" ;;
   esac
 done
-[[ "$HOST" == "$EXPECTED_HOST" ]] || die "--host must be literal old-vps"
+[[ "$HOST" == "$EXPECTED_HOST" ]] || die "--host must be literal $EXPECTED_HOST"
 if (( ! YES )); then
   read -r -p "Type deploy to confirm: " answer
   [[ "$answer" == deploy ]] || die "confirmation refused"
@@ -46,18 +47,18 @@ PY
 }
 
 check_dns() {
-  local apex www alias_ip
+  local apex www target_ip
   mapfile -t apex < <(getent ahostsv4 sochiera.pl | awk '{print $1}' | sort -u)
   mapfile -t www < <(getent ahostsv4 www.sochiera.pl | awk '{print $1}' | sort -u)
-  mapfile -t alias_ip < <(ssh -G "$EXPECTED_HOST" | awk '$1=="hostname"{print $2}' | xargs getent ahostsv4 | awk '{print $1}' | sort -u)
-  ((${#apex[@]}==1 && ${#www[@]}==1 && ${#alias_ip[@]}==1)) || die "DNS cardinality check failed"
-  [[ "${apex[0]}" == "${www[0]}" && "${apex[0]}" == "${alias_ip[0]}" ]] || die "DNS/alias address disagreement"
+  mapfile -t target_ip < <(getent ahostsv4 "${EXPECTED_HOST#*@}" | awk '{print $1}' | sort -u)
+  ((${#apex[@]}==1 && ${#www[@]}==1 && ${#target_ip[@]}==1)) || die "DNS cardinality check failed"
+  [[ "${apex[0]}" == "${www[0]}" && "${apex[0]}" == "${target_ip[0]}" ]] || die "DNS/target address disagreement"
   curl --fail --silent --show-error --head https://sochiera.pl/ >/dev/null
   curl --fail --silent --show-error --head https://www.sochiera.pl/ >/dev/null
 }
 
 check_remote_config() {
-  ssh "$EXPECTED_HOST" "set -eu; nginx -T 2>&1 | grep -Eq 'server_name[[:space:]]+([^;]*[[:space:]])?sochiera\\.pl([[:space:];]|$)' && nginx -T 2>&1 | grep -Eq 'root[[:space:]]+$DOCROOT;' && test -f '$DOCROOT/index.html' && df -P '$DOCROOT' >/dev/null"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; nginx -T 2>&1 | grep -Eq 'server_name[[:space:]]+([^;]*[[:space:]])?sochiera\\.pl([[:space:];]|$)' && nginx -T 2>&1 | grep -Eq 'root[[:space:]]+$DOCROOT;' && test -f '$DOCROOT/index.html' && df -P '$DOCROOT' >/dev/null"
 }
 
 package_release() {
@@ -69,8 +70,8 @@ package_release() {
 }
 
 upload_release() {
-  scp "$PACKAGE" "$EXPECTED_HOST:/tmp/homepage-$RELEASE_ID.tar.gz"
-  ssh "$EXPECTED_HOST" "set -eu; umask 022; mkdir -p '$RELEASE_DIR/.stage-$RELEASE_ID'; tar -xzf '/tmp/homepage-$RELEASE_ID.tar.gz' -C '$RELEASE_DIR/.stage-$RELEASE_ID'; find '$RELEASE_DIR/.stage-$RELEASE_ID' -type l -o -type b -o -type c | grep . && exit 1 || true; python3 - '$RELEASE_DIR/.stage-$RELEASE_ID' <<'PY'
+  scp -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$PACKAGE" "$EXPECTED_HOST:/tmp/homepage-$RELEASE_ID.tar.gz"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; umask 022; mkdir -p '$RELEASE_DIR/.stage-$RELEASE_ID'; tar -xzf '/tmp/homepage-$RELEASE_ID.tar.gz' -C '$RELEASE_DIR/.stage-$RELEASE_ID'; find '$RELEASE_DIR/.stage-$RELEASE_ID' -type l -o -type b -o -type c | grep . && exit 1 || true; python3 - '$RELEASE_DIR/.stage-$RELEASE_ID' <<'PY'
 import hashlib,json,pathlib,sys
 r=pathlib.Path(sys.argv[1]); m=json.loads((r/'build-manifest.json').read_text())
 assert all((r/i['path']).is_file() and hashlib.sha256((r/i['path']).read_bytes()).hexdigest()==i['sha256'] for i in m['artifacts'])
@@ -79,16 +80,16 @@ rm -f '/tmp/homepage-$RELEASE_ID.tar.gz'"
 }
 
 backup_current() {
-  ssh "$EXPECTED_HOST" "set -eu; test -d '$DOCROOT'; test -d '$RELEASE_DIR/.stage-$RELEASE_ID'; test ! -e '$RELEASE_DIR/backup-$RELEASE_ID'"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; test -d '$DOCROOT'; test -d '$RELEASE_DIR/.stage-$RELEASE_ID'; test ! -e '$RELEASE_DIR/backup-$RELEASE_ID'"
 }
 
 switch_release() {
-  ssh "$EXPECTED_HOST" "set -eu; mkdir -p '$RELEASE_DIR'; flock '$RELEASE_DIR/.lock' sh -c 'mv "$DOCROOT" "$RELEASE_DIR/backup-$RELEASE_ID"; if ! mv "$RELEASE_DIR/.stage-$RELEASE_ID" "$DOCROOT"; then mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"; exit 1; fi'"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; mkdir -p '$RELEASE_DIR'; flock '$RELEASE_DIR/.lock' sh -c 'mv "$DOCROOT" "$RELEASE_DIR/backup-$RELEASE_ID"; if ! mv "$RELEASE_DIR/.stage-$RELEASE_ID" "$DOCROOT"; then mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"; exit 1; fi'"
 }
 
 verify_release() {
   local rel expected public_path host actual
-  ssh "$EXPECTED_HOST" "python3 - '$DOCROOT' <<'PY'
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "python3 - '$DOCROOT' <<'PY'
 import hashlib,json,pathlib,sys
 r=pathlib.Path(sys.argv[1]); m=json.loads((r/'build-manifest.json').read_text())
 assert all((r/i['path']).is_file() and hashlib.sha256((r/i['path']).read_bytes()).hexdigest()==i['sha256'] for i in m['artifacts'])
@@ -110,16 +111,16 @@ PY
     [[ "$(curl --silent --output /dev/null --write-out '%{http_code}' "https://$host/de/opowiadania/kartka/")" != 200 ]] || return 1
   done
   curl --fail --silent --show-error --location --head https://sochiera.pl/malowanie-po-numerach/ >/dev/null
-  ssh "$EXPECTED_HOST" "test -d '$DOCROOT' && nginx -T 2>&1 | grep -q '/api/pbn-'"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "test -d '$DOCROOT' && nginx -T 2>&1 | grep -q '/api/pbn-'"
 }
 
 restore_backup() {
-  ssh "$EXPECTED_HOST" "set -eu; flock '$RELEASE_DIR/.lock' sh -c 'test -d "$RELEASE_DIR/backup-$RELEASE_ID"; mv "$DOCROOT" "$RELEASE_DIR/failed-$RELEASE_ID"; mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"'"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; flock '$RELEASE_DIR/.lock' sh -c 'test -d "$RELEASE_DIR/backup-$RELEASE_ID"; mv "$DOCROOT" "$RELEASE_DIR/failed-$RELEASE_ID"; mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"'"
 }
 
 manual_rollback() {
   local target="$RELEASE_DIR/backup-$ROLLBACK" failed_id="$(date -u +%Y%m%dT%H%M%SZ)-rollback"
-  ssh "$EXPECTED_HOST" "set -eu; test -d '$target'; flock '$RELEASE_DIR/.lock' sh -c 'mv "$DOCROOT" "$RELEASE_DIR/failed-$failed_id"; mv "$target" "$DOCROOT"'"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; test -d '$target'; flock '$RELEASE_DIR/.lock' sh -c 'mv "$DOCROOT" "$RELEASE_DIR/failed-$failed_id"; mv "$target" "$DOCROOT"'"
   verify_release || die "rollback verification failed"
 }
 
