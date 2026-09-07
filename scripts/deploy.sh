@@ -58,7 +58,7 @@ check_dns() {
 }
 
 check_remote_config() {
-  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; nginx -T 2>&1 | grep -Eq 'server_name[[:space:]]+([^;]*[[:space:]])?sochiera\\.pl([[:space:];]|$)' && nginx -T 2>&1 | grep -Eq 'root[[:space:]]+$DOCROOT;' && test -f '$DOCROOT/index.html' && df -P '$DOCROOT' >/dev/null"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; sudo -n nginx -T 2>&1 | grep -Eq 'server_name[[:space:]]+([^;]*[[:space:]])?sochiera\\.pl([[:space:];]|$)' && sudo -n nginx -T 2>&1 | grep -Eq 'root[[:space:]]+$DOCROOT;' && test -f '$DOCROOT/index.html' && df -P '$DOCROOT' >/dev/null"
 }
 
 package_release() {
@@ -111,7 +111,7 @@ PY
     [[ "$(curl --silent --output /dev/null --write-out '%{http_code}' "https://$host/de/opowiadania/kartka/")" != 200 ]] || return 1
   done
   curl --fail --silent --show-error --location --head https://sochiera.pl/malowanie-po-numerach/ >/dev/null
-  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "test -d '$DOCROOT' && nginx -T 2>&1 | grep -q '/api/pbn-'"
+  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "test -d '$DOCROOT' && sudo -n nginx -T 2>&1 | grep -q '/api/pbn-'"
 }
 
 restore_backup() {

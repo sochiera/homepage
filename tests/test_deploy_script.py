@@ -16,6 +16,7 @@ def test_deploy_script_is_valid_and_uses_verified_explicit_target():
     assert 'IDENTITY_FILE="${HOME}/.ssh/pbn_vps"' in text
     assert 'ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST"' in text
     assert 'scp -i "$IDENTITY_FILE" -o IdentitiesOnly=yes' in text
+    assert "sudo -n nginx -T" in text
     assert "old-vps" not in text and "/var/www/sochiera" in text
     assert "rsync --delete" not in text
 
