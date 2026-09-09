@@ -91,7 +91,8 @@ def render_site(writing_root: Path, staging: Path) -> None:
         target = staging / rel; target.parent.mkdir(parents=True, exist_ok=True)
         values = common | context
         target.write_text(env.get_template(template).render(**values), encoding="utf-8")
-    write("index.html", "home.html", lang="pl", title="Jan Sochiera", og_title="Jan Sochiera", description="Jan Sochiera — inżynier oprogramowania. Kariera, ostatnie projekty i twórczość literacka.", canonical=BASE_URL + "/")
+    write("index.html", "home.html", lang="pl", title="Jan Sochiera — strona główna", og_title="Jan Sochiera — strona główna", description="Strona główna Jana Sochiery.", canonical=BASE_URL + "/")
+    write(output_path("/o-mnie/"), "about.html", lang="pl", title="O mnie — Jan Sochiera", og_title="O mnie — Jan Sochiera", description="Jan Sochiera — inżynier oprogramowania, kariera, projekty i twórczość literacka.", canonical=BASE_URL + "/o-mnie/")
     for lang, url, heading in (("pl", "/opowiadania/", "Opowiadania"), ("de", "/de/opowiadania/", "Erzählungen")):
         listed = [s for s in stories if s["language"] == lang]
         write(output_path(url), "stories-index.html", lang=lang, stories=listed, title=f"{heading} — Jan Sochiera", og_title=heading, description=("Opowiadania Jana Sochiery." if lang == "pl" else "Erzählungen von Jan Sochiera."), canonical=BASE_URL + url)
@@ -112,7 +113,7 @@ def render_site(writing_root: Path, staging: Path) -> None:
     (staging / "build-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def validate_output(staging: Path) -> None:
-    expected = {"index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "de/opowiadania/index.html", "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg"}
+    expected = {"index.html", "o-mnie/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "de/opowiadania/index.html", "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg"}
     actual = {p.relative_to(staging).as_posix() for p in staging.rglob("*") if p.is_file()}
     if actual != expected or any(p.is_symlink() for p in staging.rglob("*")): fail("unexpected publish tree")
     for page in staging.rglob("*.html"):
@@ -122,7 +123,7 @@ def validate_output(staging: Path) -> None:
             parsed = urlsplit(link)
             if parsed.scheme in {"http", "https"}: continue
             if not link.startswith("/"): fail(f"non-root-relative link: {link}")
-            if link.startswith("/malowanie-po-numerach/"): continue
+            if link.startswith(("/malowanie-po-numerach/", "/poker/")): continue
             target = staging / (link.lstrip("/") + ("index.html" if link.endswith("/") else ""))
             if not target.is_file(): fail(f"broken internal link: {link}")
 

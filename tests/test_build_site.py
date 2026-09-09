@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from html.parser import HTMLParser
 import json
 import re
 import shutil
@@ -40,6 +41,28 @@ def build(writing: Path, output: Path, *, cwd: Path = ROOT) -> subprocess.Comple
     return subprocess.run([sys.executable, str(BUILDER), "--writing-root", str(writing), "--output", str(output)], cwd=cwd, text=True, capture_output=True)
 
 
+class Anchors(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.items = []
+        self.href = None
+        self.text = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            self.href = dict(attrs).get("href")
+            self.text = []
+
+    def handle_data(self, data):
+        if self.href is not None:
+            self.text.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self.href is not None:
+            self.items.append((self.href, "".join(self.text).strip()))
+            self.href = None
+
+
 def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     out = tmp_path / "site"
     result = build(writing, out)
@@ -48,12 +71,24 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
         "opowiadania/kartka/index.html", "de/opowiadania/index.html",
         "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg",
+        "o-mnie/index.html",
         "build-manifest.json",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
     home = (out / "index.html").read_text()
-    assert home.count('href="/malowanie-po-numerach/"') == 1
-    assert "Sii Poland" in home and "Nokia" in home and "Agent Loop" in home
+    anchors = Anchors(); anchors.feed(home)
+    assert anchors.items == [
+        ("/o-mnie/", "O mnie"),
+        ("/opowiadania/", "Opowiadania"),
+        ("https://malowanie.sochiera.pl/", "Generator malowania po numerach"),
+        ("/poker/", "Poker"),
+    ]
+    assert 'href="/malowanie-po-numerach/"' not in home
+    about = (out / "o-mnie/index.html").read_text()
+    assert all(value in about for value in (
+        "Sii Poland", "Nokia", "Agent Loop", "github.com/sochiera", "linkedin.com",
+        "/opowiadania/", "/malowanie-po-numerach/",
+    ))
     de_index = (out / "de/opowiadania/index.html").read_text()
     assert "Der gute Vater" in de_index and "Kartka" not in de_index
     for rel in expected:
