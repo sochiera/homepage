@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }}</title>
-  <meta name="description" content="{{ description }}">
+{% if robots is defined and robots %}  <meta name="robots" content="{{ robots }}">
+{% endif %}  <meta name="description" content="{{ description }}">
   <meta property="og:title" content="{{ og_title }}">
   <meta property="og:description" content="{{ description }}">
   <meta property="og:url" content="{{ canonical }}">
