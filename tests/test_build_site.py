@@ -71,7 +71,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
         "opowiadania/kartka/index.html", "de/opowiadania/index.html",
         "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg",
-        "o-mnie/index.html",
+        "o-mnie/index.html", "biblioteka/index.html",
         "build-manifest.json",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
@@ -84,7 +84,13 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("/poker/", "Poker"),
     ]
     assert 'href="/malowanie-po-numerach/"' not in home
+    assert "/biblioteka/" not in home
+    library = (out / "biblioteka/index.html").read_text()
+    assert 'name="robots" content="noindex,nofollow"' in library
+    assert 'action="/biblioteka/"' in library and "<script" not in library.lower()
+    assert 'name="robots"' not in home
     about = (out / "o-mnie/index.html").read_text()
+    assert 'name="robots"' not in about
     assert all(value in about for value in (
         "Sii Poland", "Nokia", "Agent Loop", "github.com/sochiera", "linkedin.com",
         "/opowiadania/", "/malowanie-po-numerach/",

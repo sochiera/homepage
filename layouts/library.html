@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <header><h1>Biblioteka</h1><p class="tagline">Wyszukiwarka w przygotowaniu.</p></header>
+  <section aria-labelledby="szukaj"><h2 id="szukaj">Szukaj</h2>
+    <form method="get" action="/biblioteka/">
+      <label for="zapytanie">Zapytanie</label>
+      <input type="search" id="zapytanie" name="q" required>
+      <button type="submit">Szukaj</button>
+    </form>
+    <p>Indeksowanie książek trwa. Wyszukiwanie zostanie włączone po uruchomieniu zaplecza.</p>
+  </section>
+{% endblock %}
