@@ -1,0 +1,8 @@
+[microblog]
+url = "/mikroblog/"
+language = "pl"
+title = "Mikroblog 2026"
+expected_h1 = "Mikroblog 2026"
+description = "Krótkie przemyślenia Jana Sochiery."
+profile = "standard"
+source = "Mikroblog_2026/mikroblog_2026.md"

@@ -21,4 +21,8 @@ ul { list-style:none; margin:0; padding:0; }
 .prose .chapter-name { text-align:center; font-weight:600; margin:0 0 1.5rem; }
 .prose .sep { text-align:center; margin:1.75rem 0; }
 .prose hr { border:0; border-top:1px solid var(--rule); width:4rem; margin:2.25rem auto; }
+.prose.microblog h2 { font-size:1.25rem; margin:2.5rem 0 1rem; }
+.prose.microblog h2:first-child { margin-top:0; }
+.prose blockquote { margin:0 0 1rem; padding-left:1rem; border-left:3px solid var(--rule); color:var(--muted); }
+.prose blockquote p { margin-bottom:.5rem; }
 @media (max-width:30rem) { main { padding-top:2rem; } .entry,.career .roles li { display:block; } .meta { display:block; } }

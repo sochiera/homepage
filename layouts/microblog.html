@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<header><p class="back"><a href="/">Strona główna</a></p><h1 id="mikroblog">{{ microblog.title }}</h1></header>
+<article class="prose microblog">{{ body }}</article>
+<footer><a href="/">Strona główna</a></footer>
+{% endblock %}

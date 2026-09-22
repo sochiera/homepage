@@ -11,6 +11,6 @@ python3 -m venv .venv
 .venv/bin/python scripts/build_site.py --writing-root /home/jan/Sources/writing --output .build/site
 ```
 
-Only the three paths declared in `content/stories.toml` are read. Never add `.build/`, generated HTML, manuscripts, operator configuration, or secrets to Git.
+Only the approved paths declared in `content/stories.toml` and `content/microblog.toml` are read. Never add `.build/`, generated HTML, manuscripts, operator configuration, or secrets to Git.
 
 Production operators use the preconfigured SSH alias `old-vps`; connection details do not belong in this repository. See [deploy/RUNBOOK.md](deploy/RUNBOOK.md).

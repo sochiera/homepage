@@ -20,6 +20,7 @@ from markupsafe import Markup
 ROOT = Path(__file__).resolve().parents[1]
 BASE_URL = "https://sochiera.pl"
 EXPECTED_SOURCES = {"Dobry_Ojciec/opowiadanie.md", "Kartka/kartka.md", "Dobry_Ojciec/der_gute_vater.md"}
+EXPECTED_MICROBLOG_SOURCE = "Mikroblog_2026/mikroblog_2026.md"
 ALLOWED_HTML = [
     re.compile(r'^<h3 align="center">([IVX]+)</h3>$'),
     re.compile(r'^<h4 align="center">(Natan|Joram)</h4>$'),
@@ -37,6 +38,22 @@ def output_path(url: str) -> str:
         fail(f"unsafe output URL: {url}")
     return (url.strip("/") + "/index.html") if url != "/" else "index.html"
 
+def resolve_source(writing_root: Path, relative_source: str) -> Path:
+    source = writing_root / relative_source
+    if source.is_symlink() or not source.is_file():
+        fail(f"missing or linked source: {relative_source}")
+    relative = Path(relative_source)
+    current = writing_root
+    for part in relative.parts:
+        current /= part
+        if current.is_symlink():
+            fail(f"linked source component: {relative_source}")
+    resolved = source.resolve()
+    if not resolved.is_relative_to(writing_root):
+        fail("source escapes writing root")
+    return resolved
+
+
 def load_stories(writing_root: Path) -> list[dict]:
     data = tomllib.loads((ROOT / "content/stories.toml").read_text(encoding="utf-8"))
     stories = data.get("stories", [])
@@ -49,17 +66,19 @@ def load_stories(writing_root: Path) -> list[dict]:
         if story["url"] in urls or (story["language"], story["slug"]) in slugs:
             fail("duplicate output URL or slug")
         urls.add(story["url"]); slugs.add((story["language"], story["slug"]))
-        source = writing_root / story["source"]
-        if source.is_symlink() or not source.is_file(): fail(f"missing or linked source: {story['source']}")
-        relative = Path(story["source"])
-        current = writing_root
-        for part in relative.parts:
-            current /= part
-            if current.is_symlink(): fail(f"linked source component: {story['source']}")
-        resolved = source.resolve()
-        if not resolved.is_relative_to(writing_root): fail("source escapes writing root")
-        story["path"] = resolved
+        story["path"] = resolve_source(writing_root, story["source"])
     return stories
+
+
+def load_microblog(writing_root: Path) -> dict:
+    data = tomllib.loads((ROOT / "content/microblog.toml").read_text(encoding="utf-8"))
+    microblog = data.get("microblog", {})
+    if microblog.get("source") != EXPECTED_MICROBLOG_SOURCE:
+        fail("unexpected microblog source")
+    if microblog.get("url") != "/mikroblog/" or microblog.get("profile") != "standard" or microblog.get("language") != "pl":
+        fail("unexpected microblog URL, language, or render profile")
+    microblog["path"] = resolve_source(writing_root, microblog["source"])
+    return microblog
 
 def render_manuscript(story: dict) -> str:
     try: text = story["path"].read_text(encoding="utf-8")
@@ -71,7 +90,7 @@ def render_manuscript(story: dict) -> str:
     lines = lines[1:]
     normalized = []
     for line in lines:
-        if "<" in line or ">" in line:
+        if "<" in line:
             match = next((pattern.fullmatch(line) for pattern in ALLOWED_HTML if pattern.fullmatch(line)), None)
             if not match: fail(f"unapproved raw HTML in {story['source']}")
             if line.startswith("<h3"): normalized.append(f'<h2 class="chapter">{match.group(1)}</h2>')
@@ -85,6 +104,7 @@ def render_manuscript(story: dict) -> str:
 
 def render_site(writing_root: Path, staging: Path) -> None:
     stories = load_stories(writing_root)
+    microblog = load_microblog(writing_root)
     env = Environment(loader=FileSystemLoader(ROOT / "layouts"), autoescape=True, undefined=StrictUndefined, keep_trailing_newline=True)
     common = dict(alternates=[])
     def write(rel: str, template: str, **context) -> None:
@@ -94,6 +114,7 @@ def render_site(writing_root: Path, staging: Path) -> None:
     write("index.html", "home.html", lang="pl", title="Jan Sochiera — strona główna", og_title="Jan Sochiera — strona główna", description="Strona główna Jana Sochiery.", canonical=BASE_URL + "/")
     write(output_path("/o-mnie/"), "about.html", lang="pl", title="O mnie — Jan Sochiera", og_title="O mnie — Jan Sochiera", description="Jan Sochiera — inżynier oprogramowania, kariera, projekty i twórczość literacka.", canonical=BASE_URL + "/o-mnie/")
     write(output_path("/biblioteka/"), "library.html", lang="pl", title="Biblioteka — Jan Sochiera", og_title="Biblioteka — Jan Sochiera", description="Ukryta wyszukiwarka książek.", canonical=BASE_URL + "/biblioteka/", robots="noindex,nofollow")
+    write(output_path(microblog["url"]), "microblog.html", lang="pl", microblog=microblog, body=Markup(render_manuscript(microblog)), title=f'{microblog["title"]} — Jan Sochiera', og_title=microblog["title"], description=microblog["description"], canonical=BASE_URL + microblog["url"])
     for lang, url, heading in (("pl", "/opowiadania/", "Opowiadania"), ("de", "/de/opowiadania/", "Erzählungen")):
         listed = [s for s in stories if s["language"] == lang]
         write(output_path(url), "stories-index.html", lang=lang, stories=listed, title=f"{heading} — Jan Sochiera", og_title=heading, description=("Opowiadania Jana Sochiery." if lang == "pl" else "Erzählungen von Jan Sochiera."), canonical=BASE_URL + url)
@@ -109,12 +130,12 @@ def render_site(writing_root: Path, staging: Path) -> None:
     shutil.copy2(ROOT / "static/favicon.svg", staging / "favicon.svg")
     validate_output(staging)
     artifacts = [{"path": p.relative_to(staging).as_posix(), "sha256": sha(p)} for p in sorted(staging.rglob("*")) if p.is_file()]
-    sources = [{"path": s["source"], "sha256": sha(s["path"])} for s in sorted(stories, key=lambda x: x["source"])]
+    sources = [{"path": s["source"], "sha256": sha(s["path"])} for s in sorted([*stories, microblog], key=lambda x: x["source"])]
     manifest = {"schema_version": 1, "tool_version": "1.0.0", "artifacts": artifacts, "sources": sources}
     (staging / "build-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def validate_output(staging: Path) -> None:
-    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "de/opowiadania/index.html", "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg"}
+    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "de/opowiadania/index.html", "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg"}
     actual = {p.relative_to(staging).as_posix() for p in staging.rglob("*") if p.is_file()}
     if actual != expected or any(p.is_symlink() for p in staging.rglob("*")): fail("unexpected publish tree")
     for page in staging.rglob("*.html"):

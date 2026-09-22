@@ -31,9 +31,14 @@ def writing(tmp_path: Path) -> Path:
     root = tmp_path / "writing"
     (root / "Dobry_Ojciec").mkdir(parents=True)
     (root / "Kartka").mkdir()
+    (root / "Mikroblog_2026").mkdir()
     (root / "Dobry_Ojciec/opowiadanie.md").write_text(manuscript("Dobry Ojciec", True), encoding="utf-8")
     (root / "Dobry_Ojciec/der_gute_vater.md").write_text("> Deutsche Übersetzung.\n\n" + manuscript("Der gute Vater", True), encoding="utf-8")
     (root / "Kartka/kartka.md").write_text(manuscript("Kartka"), encoding="utf-8")
+    (root / "Mikroblog_2026/mikroblog_2026.md").write_text(
+        "# Mikroblog 2026\n\n## 23 września 2026\n\n> Cytat.\n\nPierwszy wpis.\n",
+        encoding="utf-8",
+    )
     return root
 
 
@@ -69,7 +74,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     assert result.returncode == 0, result.stderr
     expected = {
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
-        "opowiadania/kartka/index.html", "de/opowiadania/index.html",
+        "opowiadania/kartka/index.html", "mikroblog/index.html", "de/opowiadania/index.html",
         "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
         "build-manifest.json",
@@ -80,6 +85,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     assert anchors.items == [
         ("/o-mnie/", "O mnie"),
         ("/opowiadania/", "Opowiadania"),
+        ("/mikroblog/", "Mikroblog"),
         ("https://malowanie.sochiera.pl/", "Generator malowania po numerach"),
         ("/poker/", "Poker"),
     ]
@@ -95,6 +101,15 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "Sii Poland", "Nokia", "Agent Loop", "github.com/sochiera", "linkedin.com",
         "/opowiadania/", "/malowanie-po-numerach/",
     ))
+    stories_index = (out / "opowiadania/index.html").read_text()
+    assert "Dobry Ojciec" in stories_index and "Kartka" in stories_index
+    assert "Mikroblog" not in stories_index
+    microblog = (out / "mikroblog/index.html").read_text()
+    assert all(value in microblog for value in (
+        "Mikroblog 2026", "23 września 2026", "<blockquote>", "Cytat.", "Pierwszy wpis.",
+    ))
+    assert 'href="/opowiadania/"' not in microblog
+    assert 'href="/"' in microblog
     de_index = (out / "de/opowiadania/index.html").read_text()
     assert "Der gute Vater" in de_index and "Kartka" not in de_index
     for rel in expected:
@@ -127,7 +142,12 @@ def test_manifest_is_complete_deterministic_and_private(writing: Path, tmp_path:
     assert (first / "build-manifest.json").read_bytes() == (second / "build-manifest.json").read_bytes()
     manifest = json.loads((first / "build-manifest.json").read_text())
     assert str(writing) not in json.dumps(manifest)
-    assert {item["path"] for item in manifest["sources"]} == {"Dobry_Ojciec/opowiadanie.md", "Kartka/kartka.md", "Dobry_Ojciec/der_gute_vater.md"}
+    assert {item["path"] for item in manifest["sources"]} == {
+        "Dobry_Ojciec/opowiadanie.md",
+        "Kartka/kartka.md",
+        "Dobry_Ojciec/der_gute_vater.md",
+        "Mikroblog_2026/mikroblog_2026.md",
+    }
     for item in manifest["artifacts"]:
         assert hashlib.sha256((first / item["path"]).read_bytes()).hexdigest() == item["sha256"]
 
@@ -158,7 +178,12 @@ def test_repository_does_not_track_generated_or_manuscript_text():
     writing_root = Path("/home/jan/Sources/writing")
     if writing_root.is_dir():
         tracked_text = "\n".join((ROOT / path).read_text(encoding="utf-8") for path in tracked)
-        for relative in ("Dobry_Ojciec/opowiadanie.md", "Kartka/kartka.md", "Dobry_Ojciec/der_gute_vater.md"):
+        for relative in (
+            "Dobry_Ojciec/opowiadanie.md",
+            "Kartka/kartka.md",
+            "Dobry_Ojciec/der_gute_vater.md",
+            "Mikroblog_2026/mikroblog_2026.md",
+        ):
             for paragraph in (writing_root / relative).read_text(encoding="utf-8").split("\n\n"):
                 if len(paragraph) >= 80 and not paragraph.startswith(("#", "<")):
                     assert paragraph not in tracked_text
