@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "sochiera-homepage"
 version = "1.0.0"
 requires-python = ">=3.11"
-dependencies = ["Jinja2==3.1.6", "Markdown==3.8.2"]
+dependencies = ["Jinja2==3.1.6", "Markdown==3.8.2", "cryptography==46.0.5"]
 
 [project.optional-dependencies]
 test = ["pytest==8.4.2"]

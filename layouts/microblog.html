@@ -1,6 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
 <header><p class="back"><a href="/">Strona główna</a></p><h1 id="mikroblog">{{ microblog.title }}</h1></header>
-<article class="prose microblog">{{ body }}</article>
+<article class="prose microblog">
+{% for entry in microblog.entries %}
+  {% if entry.protected %}
+    <section class="locked-entry" data-protected="{{ entry.payload }}">
+      <h2 id="{{ entry.slug }}">{{ entry.heading }}</h2>
+      <div class="lockbox">
+        <div class="blur-bars" aria-hidden="true"><span></span><span></span><span></span></div>
+        <p class="lock-note">Ten wpis jest przeznaczony dla bliskich.</p>
+        <form class="unlock">
+          <label for="haslo-{{ entry.slug }}">Hasło</label>
+          <input id="haslo-{{ entry.slug }}" name="haslo" type="password" autocomplete="off" required>
+          <button type="submit">Odblokuj</button>
+        </form>
+        <p class="unlock-error" hidden>Nieprawidłowe hasło.</p>
+      </div>
+    </section>
+  {% else %}
+    <section class="entry-block"><h2 id="{{ entry.slug }}">{{ entry.heading }}</h2>{{ entry.body }}</section>
+  {% endif %}
+{% endfor %}
+</article>
 <footer><a href="/">Strona główna</a></footer>
 {% endblock %}
+{% block scripts %}<script defer src="/js/privacy.js"></script>{% endblock %}

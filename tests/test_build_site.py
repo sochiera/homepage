@@ -26,6 +26,8 @@ def manuscript(title: str, chaptered: bool = False) -> str:
     return "\n\n".join(chunks) + "\n"
 
 
+PROTECTED_MARKING = "Poufny-pies-99"
+
 @pytest.fixture
 def writing(tmp_path: Path) -> Path:
     root = tmp_path / "writing"
@@ -41,9 +43,26 @@ def writing(tmp_path: Path) -> Path:
     )
     return root
 
+@pytest.fixture
+def locked(writing: Path, tmp_path: Path) -> dict:
+    source = writing / "Mikroblog_2026/mikroblog_2026.md"
+    source.write_text(source.read_text(encoding="utf-8") + f"\n## 24 września 2026\n\nTajny akapit {PROTECTED_MARKING}.\n\n> Blok *poufny*.\n", encoding="utf-8")
+    protected_file = tmp_path / "protected.toml"
+    protected_file.write_text(
+        'schema_version = 1\nkdf = "pbkdf2-sha256"\niterations = 600000\n\n[[entries]]\nsource = "Mikroblog_2026/mikroblog_2026.md"\nheading = "24 września 2026"\n',
+        encoding="utf-8",
+    )
+    password_file = tmp_path / "secrets.password"
+    password_file.write_text("bardzo-dobre-haslo-", encoding="utf-8")
+    password_file.chmod(0o600)
+    return {"writing": writing, "protected": protected_file, "password": password_file}
 
-def build(writing: Path, output: Path, *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([sys.executable, str(BUILDER), "--writing-root", str(writing), "--output", str(output)], cwd=cwd, text=True, capture_output=True)
+
+def build(writing: Path, output: Path, *, cwd: Path = ROOT, protected: Path | None = None, password: Path | None = None) -> subprocess.CompletedProcess[str]:
+    command = [sys.executable, str(BUILDER), "--writing-root", str(writing), "--output", str(output)]
+    if protected: command += ["--protected-file", str(protected)]
+    if password: command += ["--password-file", str(password)]
+    return subprocess.run(command, cwd=cwd, text=True, capture_output=True)
 
 
 class Anchors(HTMLParser):
@@ -77,7 +96,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "opowiadania/kartka/index.html", "mikroblog/index.html", "de/opowiadania/index.html",
         "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
-        "build-manifest.json",
+        "build-manifest.json", "js/privacy.js",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
     home = (out / "index.html").read_text()
@@ -110,12 +129,14 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     ))
     assert 'href="/opowiadania/"' not in microblog
     assert 'href="/"' in microblog
+    assert '<script defer src="/js/privacy.js"></script>' in microblog
+    assert microblog.count("<script") == 1
     de_index = (out / "de/opowiadania/index.html").read_text()
     assert "Der gute Vater" in de_index and "Kartka" not in de_index
     for rel in expected:
         if rel.endswith(".html"):
             html = (out / rel).read_text()
-            assert 'name="viewport"' in html and "<script" not in html
+            assert 'name="viewport"' in html and (rel == "mikroblog/index.html") == ("<script" in html)
             assert not re.search(r'<(?:script|img)[^>]+src="https?://', html)
             assert not re.search(r'<link[^>]+rel="(?:stylesheet|icon)"[^>]+href="https?://', html)
 
@@ -187,3 +208,86 @@ def test_repository_does_not_track_generated_or_manuscript_text():
             for paragraph in (writing_root / relative).read_text(encoding="utf-8").split("\n\n"):
                 if len(paragraph) >= 80 and not paragraph.startswith(("#", "<")):
                     assert paragraph not in tracked_text
+
+
+def html_unescape(payload: str) -> str:
+    import html
+    return html.unescape(payload)
+
+
+def module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("build_site", BUILDER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_repository_without_protected_file_builds_unchanged(writing: Path, tmp_path: Path):
+    out = tmp_path / "site"
+    assert build(writing, out).returncode == 0
+    microblog = (out / "mikroblog/index.html").read_text()
+    assert 'section class="locked-entry"' not in microblog
+    assert html_unescape("") == ""
+
+
+def test_protected_entry_is_locked_and_not_leaked(locked: dict, tmp_path: Path):
+    out = tmp_path / "site"
+    result = build(locked["writing"], out, protected=locked["protected"], password=locked["password"])
+    assert result.returncode == 0, result.stderr
+    microblog = (out / "mikroblog/index.html").read_text()
+    assert "24 września 2026" in microblog  # heading stays public
+    assert PROTECTED_MARKING not in microblog and "Tajny akapit" not in microblog
+    assert 'section class="locked-entry" data-protected="' in microblog
+    js = (out / "js/privacy.js").read_text()
+    assert "PBKDF2" in js and "AES-GCM" in js and "sochiera/blog-v1" in js
+    # decrypt roundtrip mirrors the browser parameter set
+    import base64, json as jsonmod
+    site = module()
+    match = re.search(r'data-protected="([^"]*)"', microblog)
+    payload = jsonmod.loads(html_unescape(match.group(1)))
+    assert set(payload) == {"v", "i", "s", "n", "c"}
+    plaintext = site.decrypt_proof(
+        locked["password"].read_bytes().strip(),
+        base64.b64decode(payload["s"]), base64.b64decode(payload["n"]), base64.b64decode(payload["c"]),
+        site.PROTECTED_AAD,
+    ).decode("utf-8")
+    assert PROTECTED_MARKING in plaintext and plaintext.startswith("<") and "&lt;" not in plaintext
+    # wrong password must fail
+    from cryptography.exceptions import InvalidTag
+    with pytest.raises(InvalidTag):
+        site.decrypt_proof(b"wrong-password", base64.b64decode(payload["s"]), base64.b64decode(payload["n"]), base64.b64decode(payload["c"]), site.PROTECTED_AAD)
+    # salt and nonce are random per build
+    second = tmp_path / "site2"
+    assert build(locked["writing"], second, protected=locked["protected"], password=locked["password"]).returncode == 0
+    assert re.search(r'data-protected="([^"]*)"', (second / "mikroblog/index.html").read_text()).group(1) != match.group(1)
+
+
+def test_protected_entries_require_password_file(locked: dict, tmp_path: Path):
+    out = tmp_path / "site"
+    result = build(locked["writing"], out, protected=locked["protected"])
+    assert result.returncode != 0 and "password file" in result.stderr
+
+
+@pytest.mark.parametrize("mode, expected_ok", [(0o600, True), (0o644, False), (0o666, False)])
+def test_password_file_permissions_are_enforced(locked: dict, tmp_path: Path, mode: int, expected_ok: bool):
+    locked["password"].chmod(mode)
+    out = tmp_path / "site"
+    result = build(locked["writing"], out, protected=locked["protected"], password=locked["password"])
+    assert (result.returncode == 0) == expected_ok
+
+
+def test_unknown_protected_heading_fails(locked: dict, tmp_path: Path):
+    (locked["writing"] / "Mikroblog_2026/mikroblog_2026.md").write_text(
+        "# Mikroblog 2026\n\n## 23 września 2026\n\nPierwszy wpis.\n", encoding="utf-8",
+    )
+    result = build(locked["writing"], tmp_path / "site", protected=locked["protected"], password=locked["password"])
+    assert result.returncode != 0 and "missing" in result.stderr
+
+
+def test_empty_protected_file_builds_all_public(writing: Path, tmp_path: Path):
+    protected = tmp_path / "protected-empty.toml"
+    protected.write_text('schema_version = 1\nkdf = "pbkdf2-sha256"\niterations = 600000\nentries = []\n', encoding="utf-8")
+    out = tmp_path / "site"
+    assert build(writing, out, protected=protected).returncode == 0
+    assert 'section class="locked-entry"' not in (out / "mikroblog/index.html").read_text()
