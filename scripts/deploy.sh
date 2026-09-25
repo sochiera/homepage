@@ -97,6 +97,14 @@ PY"
   while IFS=$'\t' read -r rel expected; do
     [[ "$rel" == */index.html ]] && public_path="/${rel%index.html}" || public_path="/$rel"
     [[ "$rel" == index.html ]] && public_path="/"
+    if [[ "$rel" == "biblioteka/index.html" ]]; then
+      # /biblioteka/ is proxied to the ew-web service; content is not the static artifact.
+      for host in sochiera.pl www.sochiera.pl; do
+        actual="$(curl --silent --output /dev/null --write-out '%{http_code}' "https://$host/biblioteka/")" || return 1
+        [[ "$actual" == "200" ]] || return 1
+      done
+      continue
+    fi
     for host in sochiera.pl www.sochiera.pl; do
       actual="$(curl --fail --silent --show-error "https://$host$public_path" | sha256sum | awk '{print $1}')" || return 1
       [[ "$actual" == "$expected" ]] || return 1
