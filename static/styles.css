@@ -26,3 +26,15 @@ ul { list-style:none; margin:0; padding:0; }
 .prose blockquote { margin:0 0 1rem; padding-left:1rem; border-left:3px solid var(--rule); color:var(--muted); }
 .prose blockquote p { margin-bottom:.5rem; }
 @media (max-width:30rem) { main { padding-top:2rem; } .entry,.career .roles li { display:block; } .meta { display:block; } }
+
+.locked-entry .lockbox { border:1px solid var(--rule); border-radius:.5rem; padding:1rem 1.25rem; }
+.blur-bars { display:flex; flex-direction:column; gap:.5rem; margin-bottom:1rem; }
+.blur-bars span { display:block; height:.9rem; border-radius:.45rem; background:linear-gradient(90deg, var(--rule), var(--muted), var(--rule)); background-size:200% 100%; filter:blur(5px); opacity:.8; }
+.blur-bars span:nth-child(2) { width:88%; } .blur-bars span:nth-child(3) { width:64%; }
+.lock-note { color:var(--muted); font-size:.9375rem; margin:0 0 .75rem; }
+form.unlock { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:0; }
+form.unlock input { flex:1 1 10rem; padding:.35rem .6rem; border:1px solid var(--rule); border-radius:.375rem; background:var(--bg); color:var(--fg); font:inherit; }
+form.unlock button { padding:.35rem .8rem; border:1px solid var(--rule); border-radius:.375rem; background:transparent; color:var(--accent); font:inherit; cursor:pointer; }
+form.unlock button:hover { text-decoration-thickness:2px; }
+.unlock-error { color:#a33; margin:.5rem 0 0; font-size:.9375rem; }
+@media (prefers-color-scheme: dark) { .unlock-error { color:#e08d8d; } }

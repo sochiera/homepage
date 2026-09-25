@@ -1,0 +1,12 @@
+schema_version = 1
+kdf = "pbkdf2-sha256"
+iterations = 600000
+
+# Protected microblog entries: publicly visible as a blurred preview,
+# unlocked in the browser with the shared family password.
+# The password lives only in Jan's local secret file (build machine),
+# never in the repository or the published site.
+
+[[entries]]
+source = "Mikroblog_2026/mikroblog_2026.md"
+heading = "25 września 2026"
