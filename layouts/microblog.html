@@ -5,7 +5,7 @@
 {% for entry in microblog.entries %}
   {% if entry.protected %}
     <section class="locked-entry" data-protected="{{ entry.payload }}">
-      <h2 id="{{ entry.slug }}">{{ entry.heading }}</h2>
+      <h2 id="{{ entry.slug }}"><time datetime="{{ entry.date }}">{{ entry.heading }}</time></h2>
       <div class="lockbox">
         <div class="blur-bars" aria-hidden="true"><span></span><span></span><span></span></div>
         <p class="lock-note">Ten wpis jest przeznaczony dla bliskich.</p>
@@ -18,7 +18,7 @@
       </div>
     </section>
   {% else %}
-    <section class="entry-block"><h2 id="{{ entry.slug }}">{{ entry.heading }}</h2>{{ entry.body }}</section>
+    <section class="entry-block"><h2 id="{{ entry.slug }}"><time datetime="{{ entry.date }}">{{ entry.heading }}</time></h2>{{ entry.body }}</section>
   {% endif %}
 {% endfor %}
 </article>

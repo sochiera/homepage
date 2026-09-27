@@ -291,3 +291,26 @@ def test_empty_protected_file_builds_all_public(writing: Path, tmp_path: Path):
     out = tmp_path / "site"
     assert build(writing, out, protected=protected).returncode == 0
     assert 'section class="locked-entry"' not in (out / "mikroblog/index.html").read_text()
+
+
+def test_microblog_entries_are_dated_and_newest_first(locked: dict, tmp_path: Path):
+    source = locked["writing"] / "Mikroblog_2026/mikroblog_2026.md"
+    source.write_text(source.read_text(encoding="utf-8") + "\n## 3 października 2026\n\nNajnowszy.\n\n## 1 września 2026\n\nNajstarszy.\n", encoding="utf-8")
+    out = tmp_path / "site"
+    result = build(locked["writing"], out, protected=locked["protected"], password=locked["password"])
+    assert result.returncode == 0, result.stderr
+    microblog = (out / "mikroblog/index.html").read_text()
+    dates = re.findall(r'<h2 id="[^"]+"><time datetime="([0-9-]+)">([^<]+)</time></h2>', microblog)
+    assert dates == [
+        ("2026-10-03", "3 października 2026"), ("2026-09-24", "24 września 2026"),
+        ("2026-09-23", "23 września 2026"), ("2026-09-01", "1 września 2026"),
+    ]
+    assert microblog.count("<h2") == len(dates)
+
+
+@pytest.mark.parametrize("heading", ["Bez daty", "31 września 2026", "23 wrzesnia 2026", "23 września 2026"])
+def test_microblog_rejects_undated_invalid_or_duplicate_headings(writing: Path, tmp_path: Path, heading: str):
+    source = writing / "Mikroblog_2026/mikroblog_2026.md"
+    source.write_text(source.read_text(encoding="utf-8") + f"\n## {heading}\n\nWpis.\n", encoding="utf-8")
+    result = build(writing, tmp_path / "site")
+    assert result.returncode != 0 and "date" in result.stderr
