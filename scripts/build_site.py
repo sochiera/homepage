@@ -13,6 +13,7 @@ import stat
 import sys
 import tempfile
 import tomllib
+from datetime import date
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -32,6 +33,7 @@ PROTECTED_NONCE_BYTES = 12
 PROTECTED_SCHEMA = 1
 EXPECTED_SOURCES = {"Dobry_Ojciec/opowiadanie.md", "Kartka/kartka.md", "Dobry_Ojciec/der_gute_vater.md"}
 EXPECTED_MICROBLOG_SOURCE = "Mikroblog_2026/mikroblog_2026.md"
+POLISH_MONTHS = ("stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia")
 ALLOWED_HTML = [
     re.compile(r'^<h3 align="center">([IVX]+)</h3>$'),
     re.compile(r'^<h4 align="center">(Natan|Joram)</h4>$'),
@@ -147,6 +149,12 @@ def split_microblog(text: str) -> list[dict]:
     if preamble: fail("unexpected preamble between microblog H1 and first entry")
     return entries
 
+def parse_entry_date(heading: str) -> date:
+    match = re.fullmatch(r"(\d{1,2}) (\w+) (\d{4})", heading)
+    if not match or match.group(2) not in POLISH_MONTHS: fail(f"microblog entry heading must be a date like '25 września 2026': {heading}")
+    try: return date(int(match.group(3)), POLISH_MONTHS.index(match.group(2)) + 1, int(match.group(1)))
+    except ValueError: fail(f"invalid microblog entry date: {heading}")
+
 def render_manuscript(story: dict) -> str:
     try: text = story["path"].read_text(encoding="utf-8")
     except UnicodeDecodeError as exc: raise ValueError("source is not UTF-8") from exc
@@ -188,13 +196,17 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     write(output_path("/biblioteka/"), "library.html", lang="pl", title="Biblioteka — Jan Sochiera", og_title="Biblioteka — Jan Sochiera", description="Ukryta wyszukiwarka książek.", canonical=BASE_URL + "/biblioteka/", robots="noindex,nofollow")
     protected_headings = {entry["heading"] for entry in protected["entries"]}
     entries = []
-    for entry in split_microblog(microblog["path"].read_text(encoding="utf-8")):
+    source_entries = split_microblog(microblog["path"].read_text(encoding="utf-8"))
+    for entry in source_entries: entry["date"] = parse_entry_date(entry["heading"])
+    if len({entry["date"] for entry in source_entries}) != len(source_entries): fail("duplicate microblog entry date")
+    for entry in sorted(source_entries, key=lambda e: e["date"], reverse=True):
         slug = re.sub(r"[^a-z0-9]+", "-", entry["heading"].lower()).strip("-")
+        dated = {"heading": entry["heading"], "slug": slug, "date": entry["date"].isoformat()}
         if entry["heading"] in protected_headings:
             if protected_password is None: fail("password file required for protected microblog entries")
-            entries.append({"heading": entry["heading"], "slug": slug, "protected": True, "payload": protect_fragment(render_microblog_entry(entry), protected_password)})
+            entries.append(dated | {"protected": True, "payload": protect_fragment(render_microblog_entry(entry), protected_password)})
         else:
-            entries.append({"heading": entry["heading"], "slug": slug, "protected": False, "body": Markup(render_microblog_entry(entry))})
+            entries.append(dated | {"protected": False, "body": Markup(render_microblog_entry(entry))})
     missing = protected_headings - {entry["heading"] for entry in entries}
     if missing: fail(f"protected entries missing from {microblog['source']}: {sorted(missing)}")
     microblog["entries"] = entries
