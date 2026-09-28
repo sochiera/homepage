@@ -2,6 +2,8 @@
 "use strict";
 
 const AAD = "sochiera/blog-v1";
+const STORAGE_PREFIX = "sochiera-unlock/";
+const STORAGE_TTL_MS = 6 * 60 * 60 * 1000;
 
 function bytesToU8(b64) {
   const bin = atob(b64);
@@ -36,6 +38,46 @@ async function decryptPayload(payload, password) {
   return u8ToText(new Uint8Array(plaintext));
 }
 
+/* After a successful unlock the entry is remembered for the current tab only:
+ * sessionStorage holds the decrypted fragment — never the password — scoped
+ * under the entry's key-agreement identity (iterations+salt), so a rebuilt
+ * page (new salt) never inherits an old unlock and the marker never travels
+ * between machines, browsers, or sessions. sessionStorage is tab-scoped and
+ * cleared when the tab closes; every restore requires this same-tab record,
+ * so entry content stays locked wherever it has never been unlocked. */
+function authorizeEntry(payload, fragment) {
+  const record = { v: 1, t: Date.now(), c: fragment };
+  try {
+    sessionStorage.setItem(STORAGE_PREFIX + `${payload.i}.${payload.s}`, JSON.stringify(record));
+  } catch {
+    /* Persistence is an enhancement; without storage the manual unlock stays fully functional. */
+  }
+}
+
+function storedFragment(payload) {
+  const raw = sessionStorage.getItem(STORAGE_PREFIX + `${payload.i}.${payload.s}`);
+  if (!raw) return null;
+  let record;
+  try { record = JSON.parse(raw); } catch { return null; }
+  if (!record || record.v !== 1 || !Number.isFinite(record.t) || Date.now() - record.t > STORAGE_TTL_MS) return null;
+  return typeof record.c === "string" && record.c ? record.c : null;
+}
+
+function parseChildren(fragment) {
+  const doc = new DOMParser().parseFromString(fragment, "text/html");
+  return [...doc.body.children];
+}
+
+function applyUnlocked(section, children) {
+  section.classList.remove("locked-entry");
+  section.classList.add("entry-block");
+  const heading = section.querySelector("h2");
+  if (heading) section.replaceChildren(heading, ...children);
+  else section.replaceChildren(...children);
+  section.querySelector("form.unlock")?.remove();
+  section.querySelector(".unlock-error")?.remove();
+}
+
 function init(section) {
   const form = section.querySelector("form.unlock");
   const input = form.querySelector("input[name=haslo]");
@@ -56,18 +98,21 @@ function init(section) {
     try {
       const htmlFragment = await decryptPayload(payload, password);
       if (typeof htmlFragment !== "string") throw new Error("bad plaintext");
-      section.classList.remove("locked-entry");
-      section.classList.add("entry-block");
-      const doc = new DOMParser().parseFromString(htmlFragment, "text/html");
-      section.replaceChildren(...doc.body.children);
-      form.remove();
-      error.remove();
+      authorizeEntry(payload, htmlFragment);
+      applyUnlocked(section, parseChildren(htmlFragment));
+      input.value = "";
     } catch {
       error.hidden = false;
       input.value = "";
       input.focus();
     }
   });
+  try {
+    const restored = storedFragment(payload);
+    if (restored) applyUnlocked(section, parseChildren(restored));
+  } catch {
+    /* A broken record merely keeps the entry locked behind the prompt. */
+  }
 }
 
 document.querySelectorAll("section.locked-entry").forEach(init);
