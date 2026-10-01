@@ -118,6 +118,15 @@ PY
   for host in sochiera.pl www.sochiera.pl; do
     [[ "$(curl --silent --output /dev/null --write-out '%{http_code}' "https://$host/de/opowiadania/kartka/")" != 200 ]] || return 1
   done
+  # The /forge/ entrance is a live proxied backend (not a static artifact);
+  # when the route exists it must refuse unauthenticated requests even if the
+  # proxied process is down, so the WWW entrance never leaks statically.
+  # 404 = route not installed; 401/403 = live gated backend. Anything else
+  # (notably 200 from static content) is a leak or a clobbered route.
+  case "$(curl --silent --output /dev/null --write-out '%{http_code}' "https://sochiera.pl/forge/")" in
+    404|401|403) ;;
+    *) return 1 ;;
+  esac
   curl --fail --silent --show-error --location --head https://sochiera.pl/malowanie-po-numerach/ >/dev/null
   ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "test -d '$DOCROOT' && sudo -n nginx -T 2>&1 | grep -q '/api/pbn-'"
 }
