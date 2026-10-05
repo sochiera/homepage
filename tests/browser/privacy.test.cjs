@@ -9,7 +9,9 @@
  *   4. same-tab reload: entry is unlocked again without asking for password;
  *   5. fresh tab (new sessionStorage): entry NOT auto-unlocked;
  *   6. rebuilt payload (new salt): stored record does NOT unlock the rebuild;
- *   7. the stored record contains neither the password nor the plaintext.
+ *   7. one correct password unlocks every protected entry;
+ *   8. locked entries remain compact on desktop and mobile;
+ *   9. the stored record contains neither the password nor the plaintext.
  */
 "use strict";
 
@@ -41,7 +43,8 @@ function writeMinimalRepo(writingRoot, protectedHeadings, bodyByHeading) {
   fs.writeFileSync(path.join(writingRoot, "Kartka/kartka.md"), "# Kartka\n\nTreść kartki.\n");
   let microblog = "# Mikroblog 2026\n\n## 23 września 2026\n\nPierwszy.\n";
   for (const heading of protectedHeadings) {
-    microblog += `\n## ${heading}\n\n${bodyByHeading[heading]}\n`;
+    const body = Array.isArray(bodyByHeading[heading]) ? bodyByHeading[heading].join("\n\n") : bodyByHeading[heading];
+    microblog += `\n## ${heading}\n\n${body}\n`;
   }
   fs.writeFileSync(path.join(writingRoot, "Mikroblog_2026/mikroblog_2026.md"), microblog);
   const protectedLines = [
@@ -60,7 +63,7 @@ function buildSite(writingRoot, protectedToml, out) {
   fs.writeFileSync(passwordFile, PASSWORD);
   fs.chmodSync(passwordFile, 0o600);
   execFileSync(
-    path.join(ROOT, ".venv/bin/python"),
+    path.join(ROOT, ".venv/bin/python3"),
     [BUILDER, "--writing-root", writingRoot, "--output", out, "--protected-file", protectedFile, "--password-file", passwordFile],
     { stdio: ["ignore", "pipe", "inherit"] },
   );
@@ -121,9 +124,10 @@ class ChromePage {
   const dir1 = path.join(tmp, "one");
   fs.mkdirSync(path.join(dir1, "writing"), { recursive: true });
   fs.mkdirSync(dir1, { recursive: true });
-  const { protectedToml } = writeMinimalRepo(
-    path.join(dir1, "writing"), ["24 września 2026"], { "24 września 2026": "Tajny akapit." },
-  );
+  const headings = ["24 września 2026", "25 września 2026"];
+  const longPrivateBody = Array.from({ length: 30 }, (_, i) => `Tajny drugi wpis, akapit ${i + 1}.`);
+  const bodies = { "24 września 2026": "Tajny akapit.", "25 września 2026": longPrivateBody };
+  const { protectedToml } = writeMinimalRepo(path.join(dir1, "writing"), headings, bodies);
   const site1 = path.join(tmp, "site");
   fs.mkdirSync(site1, { recursive: true });
   const html1 = buildSite(path.join(dir1, "writing"), protectedToml, site1);
@@ -132,9 +136,7 @@ class ChromePage {
   const dir2 = path.join(tmp, "two");
   fs.mkdirSync(path.join(dir2, "writing"), { recursive: true });
   fs.mkdirSync(dir2, { recursive: true });
-  const { protectedToml: toml2 } = writeMinimalRepo(
-    path.join(dir2, "writing"), ["24 września 2026"], { "24 września 2026": "Tajny akapit." },
-  );
+  const { protectedToml: toml2 } = writeMinimalRepo(path.join(dir2, "writing"), headings, bodies);
   const site2 = path.join(tmp, "site2");
   fs.mkdirSync(site2, { recursive: true });
   buildSite(path.join(dir2, "writing"), toml2, site2);
@@ -230,13 +232,16 @@ class ChromePage {
   }
 
   async function typePassword(pw) {
-    await evaluate(`(async () => {
+    await evaluate(`(() => {
       const input = document.querySelector('section.locked-entry input[name=haslo]');
       input.value = ${JSON.stringify(pw)};
       const form = document.querySelector('section.locked-entry form.unlock');
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-      await new Promise(r => setTimeout(r, 1500));
     })()`);
+    await sleepUntil(async () => evaluate(`
+      document.querySelectorAll('section.locked-entry form.unlock').length === 0 ||
+      !!document.querySelector('.unlock-error:not([hidden])')
+    `), 20000);
   }
 
   /* ---------- Case 1: locked page, no plaintext, lockbox present ---------- */
@@ -245,28 +250,43 @@ class ChromePage {
     headingText: document.querySelector('section.locked-entry h2')?.textContent ?? null,
     hasLockbox: !!document.querySelector('section.locked-entry .lockbox'),
     hasForm: !!document.querySelector('section.locked-entry form.unlock'),
+    lockedCount: document.querySelectorAll('section.locked-entry').length,
+    heights: [...document.querySelectorAll('section.locked-entry')].map(section => section.getBoundingClientRect().height),
     scriptTag: !!document.querySelector('script[src="/js/privacy.js"]'),
-    secretLeak: document.body.textContent.includes('Tajny akapit'),
+    secretLeak: document.body.textContent.includes('Tajny akapit') || document.body.textContent.includes('Tajny drugi wpis'),
+    publicContent: [...document.querySelectorAll('section.entry-block')].some(section => section.textContent.includes('Pierwszy.')),
   }))()`);
-  check("locked: heading visible before unlock", locked.headingText === "24 września 2026", JSON.stringify(locked));
-  check("locked: lockbox + unlock form present", locked.hasLockbox && locked.hasForm);
+  check("locked: heading visible before unlock", locked.headingText === "25 września 2026", JSON.stringify(locked));
+  check("locked: both lockboxes + unlock forms present", locked.lockedCount === 2 && locked.hasLockbox && locked.hasForm);
   check("locked: plaintext not in page", !locked.secretLeak);
+  check("locked: public entry unchanged", locked.publicContent);
+  check("locked: protected entry height is compact on desktop", locked.heights.length === 2 && locked.heights.every(height => height < 150), JSON.stringify(locked.heights));
+
+  await driver.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await goto(url1);
+  const mobileHeights = await evaluate(`[...document.querySelectorAll('section.locked-entry')].map(section => section.getBoundingClientRect().height)`);
+  check("locked: protected entry height is compact on mobile", mobileHeights.length === 2 && mobileHeights.every(height => height < 150), JSON.stringify(mobileHeights));
+  await driver.send("Emulation.clearDeviceMetricsOverride");
+  await goto(url1);
 
   /* ---------- Case 2: unlock with correct password ---------- */
   await typePassword(PASSWORD);
   const unlocked = await evaluate(`(() => {
-    const section = document.querySelector('section.entry-block');
+    const sections = [...document.querySelectorAll('section.entry-block')];
+    const section = sections.find(item => item.querySelector('h2 time')?.textContent === '24 września 2026');
     return {
       headingPreserved: section?.querySelector('h2')?.textContent ?? null,
       timeDatetime: section?.querySelector('h2 time')?.getAttribute('datetime') ?? null,
       bodyIncludesSecret: !!section && section.textContent.includes('Tajny akapit'),
+      allProtectedUnlocked: ['2026-09-24', '2026-09-25'].every(date => sections.some(item => item.querySelector('h2 time')?.getAttribute('datetime') === date)),
+      secondBodyIncludesSecret: sections.some(item => item.textContent.includes('Tajny drugi wpis, akapit 30.')),
       formGone: !document.querySelector('form.unlock'),
       storedRaw: sessionStorage.getItem(Object.keys(sessionStorage).find(k => k.startsWith('sochiera-unlock/')) ?? ''),
     };
   })()`);
   check("unlocked: heading + date preserved", unlocked.headingPreserved === "24 września 2026" && unlocked.timeDatetime === "2026-09-24", JSON.stringify(unlocked));
-  check("unlocked: body content rendered", unlocked.bodyIncludesSecret === true, JSON.stringify(unlocked));
-  check("unlocked: prompt removed", unlocked.formGone === true);
+  check("unlocked: one password reveals both protected bodies", unlocked.bodyIncludesSecret && unlocked.secondBodyIncludesSecret && unlocked.allProtectedUnlocked, JSON.stringify(unlocked));
+  check("unlocked: all prompts removed", unlocked.formGone === true);
 
   /* ---------- Case 7: stored record leaks nothing ---------- */
   check("storage: no password inside record", !(unlocked.storedRaw ?? "").includes(PASSWORD));
@@ -279,9 +299,9 @@ class ChromePage {
   check("cleared storage: form present again", preWrong);
   await typePassword("wrong-password-123");
   const wrong = await evaluate(`(() => ({
-    stillLocked: !!document.querySelector('section.locked-entry form.unlock'),
+    stillLocked: document.querySelectorAll('section.locked-entry form.unlock').length === 2,
     errorShown: !document.querySelector('.unlock-error')?.hidden,
-    bodyLeak: document.body.textContent.includes('Tajny akapit'),
+    bodyLeak: document.body.textContent.includes('Tajny akapit') || document.body.textContent.includes('Tajny drugi wpis'),
   }))()`);
   check("wrong password: stays locked", wrong.stillLocked === true, JSON.stringify(wrong));
   check("wrong password: error note visible", wrong.errorShown === true);
@@ -290,19 +310,19 @@ class ChromePage {
   /* ---------- Case 4: reload same tab restores without prompt ---------- */
   await typePassword(PASSWORD);
   const after = await evaluate(`(() => ({
-    unlocked: !!document.querySelector('section.entry-block'),
-    heading: document.querySelector('section.entry-block h2')?.textContent ?? null,
-    content: document.querySelector('section.entry-block')?.textContent.includes('Tajny akapit'),
+    unlocked: document.querySelectorAll('section.entry-block').length === 3,
+    heading: [...document.querySelectorAll('section.entry-block h2')].find(node => node.textContent.includes('24 września'))?.textContent ?? null,
+    content: [...document.querySelectorAll('section.entry-block')].some(section => section.textContent.includes('Tajny akapit')),
   }))()`);
   check("re-unlocked with correct password", after.unlocked && after.heading === "24 września 2026" && after.content, JSON.stringify(after));
 
   /* Reload — sessionStorage survives reload in the same tab. */
   await goto(url1);
   const reloaded = await evaluate(`(() => ({
-    unlocked: !!document.querySelector('section.entry-block'),
-    heading: document.querySelector('section.entry-block h2')?.textContent ?? null,
-    datetime: document.querySelector('section.entry-block h2 time')?.getAttribute('datetime') ?? null,
-    content: document.querySelector('section.entry-block')?.textContent.includes('Tajny akapit'),
+    unlocked: document.querySelectorAll('section.entry-block').length === 3,
+    heading: [...document.querySelectorAll('section.entry-block h2')].find(node => node.textContent.includes('24 września'))?.textContent ?? null,
+    datetime: [...document.querySelectorAll('section.entry-block h2 time')].find(node => node.textContent.includes('24 września'))?.getAttribute('datetime') ?? null,
+    content: [...document.querySelectorAll('section.entry-block')].some(section => section.textContent.includes('Tajny akapit')) && [...document.querySelectorAll('section.entry-block')].some(section => section.textContent.includes('Tajny drugi wpis, akapit 30.')),
     noPrompt: !document.querySelector('form.unlock'),
   }))()`);
   check("reload: auto-unlocked without password", reloaded.unlocked && reloaded.noPrompt, JSON.stringify(reloaded));
@@ -316,8 +336,8 @@ class ChromePage {
   fs.copyFileSync(path.join(site2, "mikroblog/index.html"), path.join(site1, "mikroblog/index.html"));
   await goto(url1);
   const rebuilt = await evaluate(`(() => ({
-    locked: !!document.querySelector('section.locked-entry form.unlock'),
-    content: document.body.textContent.includes('Tajny akapit'),
+    locked: document.querySelectorAll('section.locked-entry form.unlock').length === 2,
+    content: document.body.textContent.includes('Tajny akapit') || document.body.textContent.includes('Tajny drugi wpis'),
   }))()`);
   check("rebuilt payload: stays locked on new salt", rebuilt.locked === true, JSON.stringify(rebuilt));
   check("rebuilt payload: no plaintext", rebuilt.content === false);

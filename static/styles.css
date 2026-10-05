@@ -38,3 +38,15 @@ form.unlock button { padding:.35rem .8rem; border:1px solid var(--rule); border-
 form.unlock button:hover { text-decoration-thickness:2px; }
 .unlock-error { color:#a33; margin:.5rem 0 0; font-size:.9375rem; }
 @media (prefers-color-scheme: dark) { .unlock-error { color:#e08d8d; } }
+/* Locked entries stay short: only the title, a small lock marker and the shared unlock form are public. */
+.prose.microblog .locked-entry { margin-bottom:.75rem; }
+.prose.microblog .locked-entry h2 { margin:.75rem 0 .35rem; }
+.locked-entry .lockbox { display:grid; grid-template-columns:3rem minmax(0,1fr); align-items:center; gap:.25rem .75rem; padding:.5rem .75rem; }
+.locked-entry .blur-bars { grid-row:1 / span 2; gap:.2rem; margin:0; }
+.locked-entry .blur-bars span { height:.4rem; filter:blur(3px); }
+.locked-entry .lock-note { font-size:.875rem; margin:0; }
+.locked-entry form.unlock { grid-column:2; display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:.25rem .5rem; }
+@media (max-width:30rem) {
+  .locked-entry .lockbox { grid-template-columns:2rem minmax(0,1fr); gap:.25rem .5rem; padding:.5rem; }
+  .locked-entry form.unlock { grid-column:1 / -1; }
+}

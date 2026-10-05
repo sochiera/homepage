@@ -4,6 +4,8 @@
 const AAD = "sochiera/blog-v1";
 const STORAGE_PREFIX = "sochiera-unlock/";
 const STORAGE_TTL_MS = 6 * 60 * 60 * 1000;
+const protectedEntries = new Map();
+let unlockInProgress = false;
 
 function bytesToU8(b64) {
   const bin = atob(b64);
@@ -90,21 +92,40 @@ function init(section) {
     section.hidden = true;
     return;
   }
+  protectedEntries.set(section, payload);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (unlockInProgress) return;
     error.hidden = true;
     const password = input.value;
     if (!password) return;
+    unlockInProgress = true;
     try {
       const htmlFragment = await decryptPayload(payload, password);
       if (typeof htmlFragment !== "string") throw new Error("bad plaintext");
-      authorizeEntry(payload, htmlFragment);
-      applyUnlocked(section, parseChildren(htmlFragment));
-      input.value = "";
+      const decryptedEntries = await Promise.all(
+        [...protectedEntries].map(async ([candidate, candidatePayload]) => {
+          if (!candidate.isConnected || !candidate.classList.contains("locked-entry")) return null;
+          try {
+            const fragment = candidate === section ? htmlFragment : await decryptPayload(candidatePayload, password);
+            return { section: candidate, payload: candidatePayload, fragment };
+          } catch {
+            return null;
+          }
+        })
+      );
+      for (const entry of decryptedEntries) {
+        if (!entry) continue;
+        authorizeEntry(entry.payload, entry.fragment);
+        applyUnlocked(entry.section, parseChildren(entry.fragment));
+      }
+      document.querySelectorAll('form.unlock input[name="haslo"]').forEach((field) => { field.value = ""; });
     } catch {
       error.hidden = false;
       input.value = "";
       input.focus();
+    } finally {
+      unlockInProgress = false;
     }
   });
   try {
