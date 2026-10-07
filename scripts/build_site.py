@@ -226,6 +226,8 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     shutil.copy2(ROOT / "static/favicon.svg", staging / "favicon.svg")
     (staging / "js").mkdir()
     shutil.copy2(ROOT / "static/js/privacy.js", staging / "js/privacy.js")
+    (staging / "pobierz").mkdir()
+    shutil.copy2(ROOT / "static/pobierz/mealspire-1.2.apk", staging / "pobierz/mealspire-1.2.apk")
     validate_output(staging)
     artifacts = [{"path": p.relative_to(staging).as_posix(), "sha256": sha(p)} for p in sorted(staging.rglob("*")) if p.is_file()]
     sources = [{"path": s["source"], "sha256": sha(s["path"])} for s in sorted([*stories, microblog], key=lambda x: x["source"])]
@@ -233,7 +235,7 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     (staging / "build-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def validate_output(staging: Path) -> None:
-    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "de/opowiadania/index.html", "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg", "js/privacy.js"}
+    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "de/opowiadania/index.html", "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg", "js/privacy.js", "pobierz/mealspire-1.2.apk"}
     actual = {p.relative_to(staging).as_posix() for p in staging.rglob("*") if p.is_file()}
     if actual != expected or any(p.is_symlink() for p in staging.rglob("*")): fail("unexpected publish tree")
     for page in staging.rglob("*.html"):
