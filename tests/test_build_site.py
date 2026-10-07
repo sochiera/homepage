@@ -96,7 +96,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "opowiadania/kartka/index.html", "mikroblog/index.html", "de/opowiadania/index.html",
         "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
-        "build-manifest.json", "js/privacy.js",
+        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
     home = (out / "index.html").read_text()
@@ -107,6 +107,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("/mikroblog/", "Mikroblog"),
         ("https://malowanie.sochiera.pl/", "Generator malowania po numerach"),
         ("/poker/", "Poker"),
+        ("/pobierz/mealspire-1.2.apk", "Mealspire — aplikacja na Androida (APK 1.2)"),
     ]
     assert 'href="/malowanie-po-numerach/"' not in home
     assert "/biblioteka/" not in home
