@@ -1,0 +1,31 @@
+{% autoescape false %}# Jan Sochiera
+
+> {{ description }}
+
+Jan Sochiera buduje oprogramowanie od 2013 roku i pisze opowiadania. Ostatnio rozwija się w AI: testuje modele, agentów i harnessy, dopracowuje własny sposób pracy z nimi i napisał własny orkiestrator.
+
+Strona jest po polsku, jedno opowiadanie ma też wersję niemiecką. Wszystkie publiczne treści są zwykłym HTML i nie wymagają JavaScriptu. Część wpisów mikrobloga jest zaszyfrowana i przeznaczona tylko dla bliskich; ich treść nie jest publiczna.
+
+## Strony
+
+- [Strona główna]({{ site }}/): wizytówka, linki do stron i projektów.
+- [O mnie]({{ site }}/o-mnie/): kariera (Sii Poland od 2024, wcześniej Nokia 2013–2024), projekty i twórczość literacka.
+- [Opowiadania]({{ site }}/opowiadania/): spis opowiadań po polsku.
+- [{{ microblog.title }}]({{ site }}{{ microblog.url }}): {{ microblog.description }}
+
+## Opowiadania
+{% for story in stories %}
+- [{{ story.title }}]({{ site }}{{ story.url }}): {{ "po polsku" if story.language == "pl" else "po niemiecku" }}.
+{%- endfor %}
+
+## Projekty
+
+- [Generator malowania po numerach](https://malowanie.sochiera.pl/): aplikacja webowa, która zamienia zdjęcie w zestaw do malowania po numerach: kolorowy podgląd, szablon do druku z ponumerowanymi polami i legendę palety barw.
+- [Poker]({{ root }}/poker/): planning poker dla zespołu w czasie rzeczywistym; uczestnicy wchodzą przez link i głosują prywatnie, a prowadzący jednym ruchem odsłania wszystkie karty razem ze statystykami.
+- Mealspire: aplikacja na Androida, która podpowiada, co ugotować, i uczy się kuchni użytkownika. Aktualny plik APK do pobrania jest podlinkowany na stronie głównej.
+
+## Gdzie indziej
+
+- [GitHub](https://github.com/sochiera)
+- [LinkedIn](https://www.linkedin.com/in/jan-sochiera-a98bb7a8/)
+{% endautoescape %}

@@ -13,10 +13,14 @@
   <meta property="og:description" content="{{ description }}">
   <meta property="og:url" content="{{ canonical }}">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Jan Sochiera">
+  <meta property="og:locale" content="{{ 'de_DE' if lang == 'de' else 'pl_PL' }}">
+  <meta name="author" content="Jan Sochiera">
   <link rel="canonical" href="{{ canonical }}">
 {% for alternate in alternates %}  <link rel="alternate" hreflang="{{ alternate.lang }}" href="{{ alternate.url }}">
-{% endfor %}  <link rel="icon" href="{{ base }}/favicon.svg" type="image/svg+xml">
-  <link rel="preload" href="{{ base }}/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
+{% endfor %}  <link rel="alternate" type="text/plain" href="{{ base }}/llms.txt" title="llms.txt">
+  <link rel="icon" href="{{ base }}/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="{{ base }}/fonts/newsreader.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ base }}/styles.css">
 </head>
 <body class="{% block page %}page{% endblock %}">

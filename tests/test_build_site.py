@@ -97,7 +97,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
         "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk",
-        "img/jan-sochiera.jpg", "fonts/fraunces.woff2", "fonts/fraunces-italic.woff2", "fonts/OFL.txt",
+        "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "llms.txt",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
     home = (out / "index.html").read_text()
@@ -106,8 +106,8 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("/o-mnie/", "O mnie"),
         ("/opowiadania/", "Opowiadania"),
         ("/mikroblog/", "Mikroblog"),
-        ("https://malowanie.sochiera.pl/", "Generator malowania po numerach"),
-        ("/poker/", "Poker"),
+        ("https://malowanie.sochiera.pl/", "Otwórz generator"),
+        ("/poker/", "Otwórz Poker"),
         ("/pobierz/mealspire-1.2.apk", "Mealspire — aplikacja na Androida (APK 1.2)"),
         ("https://github.com/sochiera", "GitHub"),
         ("https://www.linkedin.com/in/jan-sochiera-a98bb7a8/", "LinkedIn"),
@@ -326,13 +326,42 @@ def test_home_project_rows_have_expandable_descriptions(writing: Path, tmp_path:
     out = tmp_path / "site"
     assert build(writing, out).returncode == 0
     home = (out / "index.html").read_text()
-    rows = re.findall(r'<li class="row">(.*?)</li>', home, re.S)
+    rows = re.findall(r'<li class="row( project)?">(.*?)</li>', home, re.S)
     assert len(rows) == 6
-    for row in rows[3:]:
-        summary = re.search(r'<details class="row-more"><summary><span class="sr-only">Opis: [^<]+</span>', row)
-        assert summary and '<p class="row-desc">' in row
-        assert row.index("<a ") < row.index("<details")  # the link itself stays one click away, outside the toggle
-    assert all("<details" not in row for row in rows[:3])
+    assert [bool(kind) for kind, _ in rows] == [False] * 3 + [True] * 3
+    for _, row in rows[3:]:
+        # The project heading is the disclosure toggle; the description is in the HTML without any script.
+        summary = re.search(r'<details class="project-more"><summary>(.*?)</summary>\s*<p class="row-desc">[^<]{40,}', row, re.S)
+        assert summary and '<span class="row-title">' in summary.group(1) and "<a " not in summary.group(1)
+        # The link that opens the project is a separate control after the toggle.
+        assert row.index("</details>") < row.index('<p class="project-open') < row.index("<a ")
+    assert all("<details" not in row for _, row in rows[:3])
+
+
+def test_home_bio_and_career_placement(writing: Path, tmp_path: Path):
+    out = tmp_path / "site"
+    assert build(writing, out).returncode == 0
+    home = (out / "index.html").read_text()
+    lede = re.search(r'<p class="lede">(.*?)</p>', home, re.S).group(1).replace("&nbsp;", " ")
+    assert "wciągnął" not in home and all(word in lede for word in ("AI", "modele", "agentów", "harnessy", "orkiestrator"))
+    assert all(value not in home for value in ("Sii Poland", "Nokia", "Technical Leader", 'class="facts"'))
+    about = (out / "o-mnie/index.html").read_text()
+    assert "wciągnął" not in about and "Technical Leader" in about and "Sii Poland" in about
+
+
+def test_llms_txt_lists_only_public_pages(locked: dict, tmp_path: Path):
+    out = tmp_path / "site"
+    result = build(locked["writing"], out, protected=locked["protected"], password=locked["password"])
+    assert result.returncode == 0, result.stderr
+    llms = (out / "llms.txt").read_text(encoding="utf-8")
+    assert llms.startswith("# Jan Sochiera\n\n> ") and "orkiestrator" in llms
+    for url in ("https://sochiera.pl/o-mnie/", "https://sochiera.pl/opowiadania/kartka/", "https://sochiera.pl/de/opowiadania/der-gute-vater/",
+                "https://sochiera.pl/mikroblog/", "https://malowanie.sochiera.pl/", "https://sochiera.pl/poker/"):
+        assert f"]({url})" in llms
+    assert "biblioteka" not in llms and ".apk" not in llms and "&amp;" not in llms
+    assert PROTECTED_MARKING not in llms
+    for page in out.rglob("*.html"):
+        assert '<link rel="alternate" type="text/plain" href="/llms.txt"' in page.read_text()
 
 
 def test_home_keeps_mealspire_publisher_contract(writing: Path, tmp_path: Path):
@@ -357,6 +386,7 @@ def test_base_path_preview_is_isolated_and_noindex(locked: dict, tmp_path: Path)
         for link in re.findall(r'(?:href|src|action)="(/[^"]*)"', html):
             assert link.startswith(("/v2/", "/poker/", "/malowanie-po-numerach/", "/pobierz/")), (page, link)
     home = (out / "index.html").read_text()
+    assert "](https://sochiera.pl/v2/o-mnie/)" in (out / "llms.txt").read_text() and "](https://sochiera.pl/poker/)" in (out / "llms.txt").read_text()
     assert 'href="/v2/o-mnie/"' in home and 'href="/poker/"' in home and 'href="/pobierz/mealspire-1.2.apk" download' in home
     microblog = (out / "mikroblog/index.html").read_text()
     assert '<script defer src="/v2/js/privacy.js"></script>' in microblog and 'href="/v2/"' in microblog
