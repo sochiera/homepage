@@ -72,7 +72,7 @@ footer a { color:var(--ink); }
 .prose.microblog .entry-block:first-child { padding-top:0; border-top:0; }
 
 /* Protected microblog entries: only the date, a small lock marker and the shared unlock form are public. */
-.prose.microblog .locked-entry { margin:0 0 .75rem; padding-top:1.25rem; border-top:1px solid var(--rule); }
+.prose.microblog .locked-entry { margin:0 0 .5rem; padding-top:.75rem; border-top:1px solid var(--rule); }
 .prose.microblog .locked-entry:first-child { padding-top:0; border-top:0; }
 .prose.microblog .locked-entry h2 { margin:0 0 .45rem; }
 .locked-entry .lockbox { display:grid; grid-template-columns:3rem minmax(0,1fr); align-items:center; gap:.3rem .85rem; padding:.55rem .8rem; border:1px dashed var(--rule); border-radius:.5rem; background:var(--glow); font-size:1rem; line-height:1.4; hyphens:manual; }
