@@ -6,9 +6,9 @@ Static homepage and story publisher. Story bodies remain outside this repository
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install -e '.[test]'
-.venv/bin/python -m pytest
-.venv/bin/python scripts/build_site.py --writing-root /home/jan/Sources/writing --output .build/site \
+.venv/bin/python3 -m pip install -e '.[test]'
+.venv/bin/python3 -m pytest
+.venv/bin/python3 scripts/build_site.py --writing-root /home/jan/Sources/writing --output .build/site \
   --protected-file content/protected.toml --password-file /home/jan/.config/sochiera/blog-password
 ```
 
@@ -16,6 +16,12 @@ python3 -m venv .venv
 
 An unlocked entry stays unlocked on page reload in the same tab: `static/js/privacy.js` keeps the decrypted fragment in `sessionStorage` (keyed by the entry's PBKDF2 identity, 6-hour maximum), never the password itself. The record dies with the tab, is invisible to other tabs and browsers, and a rebuilt page (fresh salt) starts locked again.
 
+Stories marked `published = false` remain in the allowlist, but are not read, built or listed in links, metadata, llms.txt or the build manifest. The German translation source is retained outside this repository; its current production route is unaffected until a separately authorized production release.
+
 Only the approved paths declared in `content/stories.toml` and `content/microblog.toml` are read. Never add `.build/`, generated HTML, manuscripts, operator configuration, or secrets to Git.
+
+`--base-path /v2` builds an isolated, noindex preview of the whole site below `/v2/`; see the preview section of the runbook.
+
+The typeface is Newsreader (SIL OFL 1.1, `static/fonts/OFL.txt`), self-hosted as variable (weight 300–700, optical size) woff2 subsets covering Latin-1 and Polish; the portrait in `static/img/` is a cropped copy with metadata stripped.
 
 Production operators use the preconfigured SSH alias `old-vps`; connection details do not belong in this repository. See [deploy/RUNBOOK.md](deploy/RUNBOOK.md).

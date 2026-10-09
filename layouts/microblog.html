@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% block page %}page reading{% endblock %}
 {% block content %}
-<header><p class="back"><a href="/">Strona główna</a></p><h1 id="mikroblog">{{ microblog.title }}</h1></header>
+<header><p class="back"><a href="{{ base }}/">Strona główna</a></p><h1 id="mikroblog">{{ microblog.title }}</h1></header>
 <article class="prose microblog">
 {% for entry in microblog.entries %}
   {% if entry.protected %}
@@ -22,6 +23,6 @@
   {% endif %}
 {% endfor %}
 </article>
-<footer><a href="/">Strona główna</a></footer>
+<footer><a href="{{ base }}/">Strona główna</a></footer>
 {% endblock %}
-{% block scripts %}<script defer src="/js/privacy.js"></script>{% endblock %}
+{% block scripts %}<script defer src="{{ base }}/js/privacy.js"></script>{% endblock %}

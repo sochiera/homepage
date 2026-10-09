@@ -34,6 +34,12 @@ PROTECTED_SCHEMA = 1
 EXPECTED_SOURCES = {"Dobry_Ojciec/opowiadanie.md", "Kartka/kartka.md", "Dobry_Ojciec/der_gute_vater.md"}
 EXPECTED_MICROBLOG_SOURCE = "Mikroblog_2026/mikroblog_2026.md"
 POLISH_MONTHS = ("stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia")
+# Routes owned by other applications (or by the shared download directory) that
+# are always linked at the site root, even from a preview built under a base path.
+ROOT_ONLY_PREFIXES = ("/malowanie-po-numerach/", "/poker/", "/pobierz/")
+BASE_PATH_RE = re.compile(r"^(/[a-z0-9][a-z0-9-]*)?$")
+STATIC_FILES = ("styles.css", "favicon.svg", "js/privacy.js", "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-wersja.json")
+HOME_DESCRIPTION = "Jan Sochiera — inżynier oprogramowania z Wrocławia. Opowiadania, mikroblog i projekty: generator malowania po numerach, planning poker i aplikacja Mealspire."
 ALLOWED_HTML = [
     re.compile(r'^<h3 align="center">([IVX]+)</h3>$'),
     re.compile(r'^<h4 align="center">(Natan|Joram)</h4>$'),
@@ -73,14 +79,20 @@ def load_stories(writing_root: Path) -> list[dict]:
     if {s.get("source") for s in stories} != EXPECTED_SOURCES or len(stories) != 3:
         fail("story allowlist must contain exactly the three approved sources")
     urls, slugs = set(), set()
+    public_stories = []
     for story in stories:
         if story["language"] not in {"pl", "de"} or story["profile"] not in {"chaptered", "standard"}:
             fail("unexpected language or render profile")
         if story["url"] in urls or (story["language"], story["slug"]) in slugs:
             fail("duplicate output URL or slug")
         urls.add(story["url"]); slugs.add((story["language"], story["slug"]))
-        story["path"] = resolve_source(writing_root, story["source"])
-    return stories
+        published = story.get("published", True)
+        if not isinstance(published, bool):
+            fail("story published flag must be boolean")
+        if published:
+            story["path"] = resolve_source(writing_root, story["source"])
+            public_stories.append(story)
+    return public_stories
 
 
 def load_microblog(writing_root: Path) -> dict:
@@ -182,17 +194,18 @@ def render_microblog_entry(entry: dict) -> str:
     fragment = markdown.markdown("\n".join(entry["lines"]), extensions=["sane_lists"], output_format="html")
     return fragment.replace("<hr />", "<hr>")
 
-def render_site(writing_root: Path, staging: Path, protected: dict, protected_password: bytes | None) -> None:
+def render_site(writing_root: Path, staging: Path, protected: dict, protected_password: bytes | None, base: str = "") -> None:
     stories = load_stories(writing_root)
     microblog = load_microblog(writing_root)
     env = Environment(loader=FileSystemLoader(ROOT / "layouts"), autoescape=True, undefined=StrictUndefined, keep_trailing_newline=True)
-    common = dict(alternates=[])
+    common = dict(alternates=[], base=base)
     def write(rel: str, template: str, **context) -> None:
         target = staging / rel; target.parent.mkdir(parents=True, exist_ok=True)
         values = common | context
+        if base: values["robots"] = "noindex,nofollow"
         target.write_text(env.get_template(template).render(**values), encoding="utf-8")
-    write("index.html", "home.html", lang="pl", title="Jan Sochiera — strona główna", og_title="Jan Sochiera — strona główna", description="Strona główna Jana Sochiery.", canonical=BASE_URL + "/")
-    write(output_path("/o-mnie/"), "about.html", lang="pl", title="O mnie — Jan Sochiera", og_title="O mnie — Jan Sochiera", description="Jan Sochiera — inżynier oprogramowania, kariera, projekty i twórczość literacka.", canonical=BASE_URL + "/o-mnie/")
+    write("index.html", "home.html", lang="pl", title="Jan Sochiera — strona główna", og_title="Jan Sochiera — strona główna", description=HOME_DESCRIPTION, canonical=BASE_URL + "/")
+    write(output_path("/o-mnie/"), "about.html", lang="pl", title="O mnie — Jan Sochiera", og_title="O mnie — Jan Sochiera", description="Jan Sochiera — inżynier oprogramowania, doświadczenie zawodowe i kariera.", canonical=BASE_URL + "/o-mnie/")
     write(output_path("/biblioteka/"), "library.html", lang="pl", title="Biblioteka — Jan Sochiera", og_title="Biblioteka — Jan Sochiera", description="Ukryta wyszukiwarka książek.", canonical=BASE_URL + "/biblioteka/", robots="noindex,nofollow")
     protected_headings = {entry["heading"] for entry in protected["entries"]}
     entries = []
@@ -213,6 +226,8 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     write(output_path(microblog["url"]), "microblog.html", lang="pl", microblog=microblog, title=f'{microblog["title"]} — Jan Sochiera', og_title=microblog["title"], description=microblog["description"], canonical=BASE_URL + microblog["url"])
     for lang, url, heading in (("pl", "/opowiadania/", "Opowiadania"), ("de", "/de/opowiadania/", "Erzählungen")):
         listed = [s for s in stories if s["language"] == lang]
+        if not listed:
+            continue
         write(output_path(url), "stories-index.html", lang=lang, stories=listed, title=f"{heading} — Jan Sochiera", og_title=heading, description=("Opowiadania Jana Sochiery." if lang == "pl" else "Erzählungen von Jan Sochiera."), canonical=BASE_URL + url)
     by_slug = {s["slug"]: s for s in stories}
     for story in stories:
@@ -222,20 +237,20 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
             pair = sorted((story, translation), key=lambda s: s["language"])
             alternates = [{"lang": s["language"], "url": BASE_URL + s["url"]} for s in pair]
         write(output_path(story["url"]), "story.html", lang=story["language"], story=story, translation=translation, body=Markup(render_manuscript(story)), title=f"{story['title']} — Jan Sochiera", og_title=story["title"], description=story["description"], canonical=BASE_URL + story["url"], alternates=alternates)
-    shutil.copy2(ROOT / "static/styles.css", staging / "styles.css")
-    shutil.copy2(ROOT / "static/favicon.svg", staging / "favicon.svg")
-    (staging / "js").mkdir()
-    shutil.copy2(ROOT / "static/js/privacy.js", staging / "js/privacy.js")
-    (staging / "pobierz").mkdir()
-    shutil.copy2(ROOT / "static/pobierz/mealspire-1.2.apk", staging / "pobierz/mealspire-1.2.apk")
-    validate_output(staging)
+    # Plain-text map of the public site for language models (llmstxt.org); public facts only.
+    (staging / "llms.txt").write_text(env.get_template("llms.txt").render(site=BASE_URL + base, root=BASE_URL, description=HOME_DESCRIPTION,
+                                      stories=sorted(stories, key=lambda s: s["language"] != "pl"), microblog=microblog), encoding="utf-8")
+    for rel in STATIC_FILES:
+        (staging / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / "static" / rel, staging / rel)
+    validate_output(staging, base)
     artifacts = [{"path": p.relative_to(staging).as_posix(), "sha256": sha(p)} for p in sorted(staging.rglob("*")) if p.is_file()]
     sources = [{"path": s["source"], "sha256": sha(s["path"])} for s in sorted([*stories, microblog], key=lambda x: x["source"])]
     manifest = {"schema_version": 1, "tool_version": "1.0.0", "artifacts": artifacts, "sources": sources}
     (staging / "build-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-def validate_output(staging: Path) -> None:
-    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "de/opowiadania/index.html", "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg", "js/privacy.js", "pobierz/mealspire-1.2.apk"}
+def validate_output(staging: Path, base: str = "") -> None:
+    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "llms.txt", *STATIC_FILES}
     actual = {p.relative_to(staging).as_posix() for p in staging.rglob("*") if p.is_file()}
     if actual != expected or any(p.is_symlink() for p in staging.rglob("*")): fail("unexpected publish tree")
     for page in staging.rglob("*.html"):
@@ -243,7 +258,7 @@ def validate_output(staging: Path) -> None:
         text = page.read_text(encoding="utf-8")
         has_script = "<script" in text.lower()
         if rel == "mikroblog/index.html":
-            if has_script and text.count('<script defer src="/js/privacy.js"></script>') != 1:
+            if has_script and text.count(f'<script defer src="{base}/js/privacy.js"></script>') != 1:
                 fail("microblog must load exactly the site decryptor script")
             for match in re.finditer(r'section class="locked-entry[^"]*" data-protected="([^"]*)"', text):
                 payload = json.loads(html_mod.unescape(match.group(1)))
@@ -257,7 +272,10 @@ def validate_output(staging: Path) -> None:
             parsed = urlsplit(link)
             if parsed.scheme in {"http", "https"}: continue
             if not link.startswith("/"): fail(f"non-root-relative link: {link}")
-            if link.startswith(("/malowanie-po-numerach/", "/poker/")): continue
+            if link.startswith(ROOT_ONLY_PREFIXES[:2]): continue
+            if base and not link.startswith(ROOT_ONLY_PREFIXES):
+                if not link.startswith(base + "/"): fail(f"link escapes base path {base}: {link}")
+                link = link[len(base):]
             target = staging / (link.lstrip("/") + ("index.html" if link.endswith("/") else ""))
             if not target.is_file(): fail(f"broken internal link: {link}")
 
@@ -267,7 +285,9 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=ROOT / ".build/site")
     parser.add_argument("--protected-file", type=Path, help="TOML declaring protected microblog entries (default: none)")
     parser.add_argument("--password-file", type=Path)
+    parser.add_argument("--base-path", default="", help="serve the whole tree below this prefix, e.g. /v2 for an isolated noindex preview (default: site root)")
     args = parser.parse_args()
+    if not BASE_PATH_RE.fullmatch(args.base_path): fail("base path must be empty or a single lowercase segment like /v2")
     writing_root = args.writing_root.resolve()
     output = args.output.absolute()
     if not writing_root.is_dir(): fail("writing root does not exist")
@@ -279,7 +299,7 @@ def main() -> int:
         fail("password file is required when protected entries exist (use --password-file)")
     staging = Path(tempfile.mkdtemp(prefix=f".{output.name}.", dir=output.parent))
     try:
-        render_site(writing_root, staging, protected, protected_password)
+        render_site(writing_root, staging, protected, protected_password, args.base_path)
         old = output.with_name(output.name + ".previous")
         if old.exists(): shutil.rmtree(old)
         if output.exists(): os.replace(output, old)

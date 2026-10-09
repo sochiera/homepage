@@ -93,10 +93,10 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     assert result.returncode == 0, result.stderr
     expected = {
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
-        "opowiadania/kartka/index.html", "mikroblog/index.html", "de/opowiadania/index.html",
-        "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg",
+        "opowiadania/kartka/index.html", "mikroblog/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
-        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk",
+        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-wersja.json",
+        "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "llms.txt",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
     home = (out / "index.html").read_text()
@@ -105,10 +105,14 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("/o-mnie/", "O mnie"),
         ("/opowiadania/", "Opowiadania"),
         ("/mikroblog/", "Mikroblog"),
-        ("https://malowanie.sochiera.pl/", "Generator malowania po numerach"),
-        ("/poker/", "Poker"),
-        ("/pobierz/mealspire-1.2.apk", "Mealspire — aplikacja na Androida (APK 1.2)"),
+        ("https://malowanie.sochiera.pl/", "Otwórz generator"),
+        ("/poker/", "Otwórz Poker"),
+        ("/pobierz/mealspire-1.5.apk", "Mealspire — aplikacja na Androida (APK 1.5)"),
+        ("https://github.com/sochiera", "GitHub"),
+        ("https://www.linkedin.com/in/jan-sochiera-a98bb7a8/", "LinkedIn"),
     ]
+    assert "Wybierz, dokąd chcesz przejść." in home
+    assert '<img class="portrait" src="/img/jan-sochiera.jpg"' in home and 'alt="Jan Sochiera, portret"' in home
     assert 'href="/malowanie-po-numerach/"' not in home
     assert "/biblioteka/" not in home
     library = (out / "biblioteka/index.html").read_text()
@@ -118,8 +122,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     about = (out / "o-mnie/index.html").read_text()
     assert 'name="robots"' not in about
     assert all(value in about for value in (
-        "Sii Poland", "Nokia", "Agent Loop", "github.com/sochiera", "linkedin.com",
-        "/opowiadania/", "/malowanie-po-numerach/",
+        "Sii Poland", "Nokia", "github.com/sochiera", "linkedin.com",
     ))
     stories_index = (out / "opowiadania/index.html").read_text()
     assert "Dobry Ojciec" in stories_index and "Kartka" in stories_index
@@ -132,8 +135,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     assert 'href="/"' in microblog
     assert '<script defer src="/js/privacy.js"></script>' in microblog
     assert microblog.count("<script") == 1
-    de_index = (out / "de/opowiadania/index.html").read_text()
-    assert "Der gute Vater" in de_index and "Kartka" not in de_index
+    assert not (out / "de").exists()
     for rel in expected:
         if rel.endswith(".html"):
             html = (out / rel).read_text()
@@ -142,20 +144,26 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
             assert not re.search(r'<link[^>]+rel="(?:stylesheet|icon)"[^>]+href="https?://', html)
 
 
-def test_chapters_translation_links_and_standard_hr(writing: Path, tmp_path: Path):
+def test_hidden_translation_is_not_published_and_source_is_preserved(writing: Path, tmp_path: Path):
     out = tmp_path / "site"
+    source = writing / "Dobry_Ojciec/der_gute_vater.md"
+    original = source.read_bytes()
     assert build(writing, out).returncode == 0
+    assert source.read_bytes() == original
+    assert not (out / "de").exists()
     pl = (out / "opowiadania/dobry-ojciec/index.html").read_text()
-    de = (out / "de/opowiadania/der-gute-vater/index.html").read_text()
-    assert pl.count('<h2 class="chapter">') == de.count('<h2 class="chapter">') == 16
-    for html in (pl, de):
-        assert html.count('<h3 class="chapter-name">Natan</h3>') == 8
-        assert html.count('<h3 class="chapter-name">Joram</h3>') == 8
-        assert "align=" not in html and "\n---\n" not in html and 'class="sep"' in html
-        assert 'hreflang="pl"' in html and 'hreflang="de"' in html
-    assert "Wersja niemiecka" in pl and "Polnische Version" in de
-    assert "Deutsche Übersetzung" not in de
+    assert pl.count('<h2 class="chapter">') == 16
+    assert pl.count('<h3 class="chapter-name">Natan</h3>') == 8
+    assert pl.count('<h3 class="chapter-name">Joram</h3>') == 8
+    assert "align=" not in pl and "\n---\n" not in pl and 'class="sep"' in pl
+    for artifact in out.rglob("*"):
+        if artifact.is_file() and artifact.suffix in {".html", ".txt", ".json"}:
+            text = artifact.read_text()
+            assert all(value not in text for value in ("der-gute-vater", "der_gute_vater", "Der gute Vater", "Wersja niemiecka", 'hreflang="de"'))
     assert "<hr>" in (out / "opowiadania/kartka/index.html").read_text()
+    # An unpublished source is never read or required by the public builder.
+    source.unlink()
+    assert build(writing, out).returncode == 0
 
 
 def test_manifest_is_complete_deterministic_and_private(writing: Path, tmp_path: Path):
@@ -167,7 +175,6 @@ def test_manifest_is_complete_deterministic_and_private(writing: Path, tmp_path:
     assert {item["path"] for item in manifest["sources"]} == {
         "Dobry_Ojciec/opowiadanie.md",
         "Kartka/kartka.md",
-        "Dobry_Ojciec/der_gute_vater.md",
         "Mikroblog_2026/mikroblog_2026.md",
     }
     for item in manifest["artifacts"]:
@@ -199,7 +206,7 @@ def test_repository_does_not_track_generated_or_manuscript_text():
     assert not any(p == "site" or p.startswith(("site/", ".build/")) for p in tracked)
     writing_root = Path("/home/jan/Sources/writing")
     if writing_root.is_dir():
-        tracked_text = "\n".join((ROOT / path).read_text(encoding="utf-8") for path in tracked)
+        tracked_text = "\n".join((ROOT / path).read_bytes().decode("utf-8", errors="ignore") for path in tracked)
         for relative in (
             "Dobry_Ojciec/opowiadanie.md",
             "Kartka/kartka.md",
@@ -315,3 +322,84 @@ def test_microblog_rejects_undated_invalid_or_duplicate_headings(writing: Path, 
     source.write_text(source.read_text(encoding="utf-8") + f"\n## {heading}\n\nWpis.\n", encoding="utf-8")
     result = build(writing, tmp_path / "site")
     assert result.returncode != 0 and "date" in result.stderr
+
+
+def test_home_project_rows_have_expandable_descriptions(writing: Path, tmp_path: Path):
+    out = tmp_path / "site"
+    assert build(writing, out).returncode == 0
+    home = (out / "index.html").read_text()
+    rows = re.findall(r'<li class="row( project)?">(.*?)</li>', home, re.S)
+    assert len(rows) == 6
+    assert [bool(kind) for kind, _ in rows] == [False] * 3 + [True] * 3
+    for _, row in rows[3:]:
+        # The project heading is the disclosure toggle; the description is in the HTML without any script.
+        summary = re.search(r'<details class="project-more"><summary>(.*?)</summary>\s*<p class="row-desc">[^<]{40,}', row, re.S)
+        assert summary and '<span class="row-title">' in summary.group(1) and "<a " not in summary.group(1)
+        # The link that opens the project is a separate control after the toggle.
+        assert row.index("</details>") < row.index('<p class="project-open') < row.index("<a ")
+    assert all("<details" not in row for _, row in rows[:3])
+
+
+def test_home_bio_and_career_placement(writing: Path, tmp_path: Path):
+    out = tmp_path / "site"
+    assert build(writing, out).returncode == 0
+    home = (out / "index.html").read_text()
+    lede = re.search(r'<p class="lede">(.*?)</p>', home, re.S).group(1).replace("&nbsp;", " ")
+    assert "wciągnął" not in home and all(word in lede for word in ("2013", "C++", "Python", "język macierzysty", "drugą specjalizacją", "AI", "modele", "agentów", "harnessy", "rozwijania swoich projektów"))
+    assert all(value not in home for value in ("Sii Poland", "Nokia", "Technical Leader", 'class="facts"', "piszę opowiadania", "orkiestrator", "po niemiecku", "tylko dla bliskich"))
+    about = (out / "o-mnie/index.html").read_text()
+    assert "Technical Leader" in about and "Sii Poland" in about
+    assert "rozwijania swoich projektów" in about
+    assert all(value not in about for value in ("orkiestrator", "Ostatnie projekty", "Twórczość literacka", "Agent Loop"))
+
+
+def test_llms_txt_lists_only_public_pages(locked: dict, tmp_path: Path):
+    out = tmp_path / "site"
+    result = build(locked["writing"], out, protected=locked["protected"], password=locked["password"])
+    assert result.returncode == 0, result.stderr
+    llms = (out / "llms.txt").read_text(encoding="utf-8")
+    assert llms.startswith("# Jan Sochiera\n\n> ") and "rozwijania swoich projektów" in llms
+    assert "orkiestrator" not in llms and "pisze opowiadania" not in llms
+    for url in ("https://sochiera.pl/o-mnie/", "https://sochiera.pl/opowiadania/kartka/",
+                "https://sochiera.pl/mikroblog/", "https://malowanie.sochiera.pl/", "https://sochiera.pl/poker/"):
+        assert f"]({url})" in llms
+    assert "biblioteka" not in llms and ".apk" not in llms and "&amp;" not in llms
+    assert PROTECTED_MARKING not in llms
+    for page in out.rglob("*.html"):
+        assert '<link rel="alternate" type="text/plain" href="/llms.txt"' in page.read_text()
+
+
+def test_home_keeps_mealspire_publisher_contract(writing: Path, tmp_path: Path):
+    """mealspire deploy/publish-vps.py rewrites exactly this anchor in the live index.html."""
+    out = tmp_path / "site"
+    assert build(writing, out).returncode == 0
+    pattern = re.compile(r'<a href="/pobierz/mealspire-([0-9]+\.[0-9]+)\.apk" download>Mealspire — aplikacja na Androida \(APK \1\)</a>')
+    assert len(pattern.findall((out / "index.html").read_text())) == 1
+
+
+def test_base_path_preview_is_isolated_and_noindex(locked: dict, tmp_path: Path):
+    out = tmp_path / "preview"
+    command_out = build(locked["writing"], out, protected=locked["protected"], password=locked["password"])
+    assert command_out.returncode == 0
+    result = subprocess.run([sys.executable, str(BUILDER), "--writing-root", str(locked["writing"]), "--output", str(out),
+                             "--protected-file", str(locked["protected"]), "--password-file", str(locked["password"]), "--base-path", "/v2"],
+                            cwd=ROOT, text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr
+    for page in out.rglob("*.html"):
+        html = page.read_text()
+        assert 'name="robots" content="noindex,nofollow"' in html and 'class="preview-flag"' in html
+        for link in re.findall(r'(?:href|src|action)="(/[^"]*)"', html):
+            assert link.startswith(("/v2/", "/poker/", "/malowanie-po-numerach/", "/pobierz/")), (page, link)
+    home = (out / "index.html").read_text()
+    assert "](https://sochiera.pl/v2/o-mnie/)" in (out / "llms.txt").read_text() and "](https://sochiera.pl/poker/)" in (out / "llms.txt").read_text()
+    assert 'href="/v2/o-mnie/"' in home and 'href="/poker/"' in home and 'href="/pobierz/mealspire-1.5.apk" download' in home
+    microblog = (out / "mikroblog/index.html").read_text()
+    assert '<script defer src="/v2/js/privacy.js"></script>' in microblog and 'href="/v2/"' in microblog
+    assert PROTECTED_MARKING not in microblog and 'section class="locked-entry" data-protected="' in microblog
+
+
+@pytest.mark.parametrize("base", ["v2", "/v2/", "/../x", "/V2", "/a/b"])
+def test_base_path_is_constrained(writing: Path, tmp_path: Path, base: str):
+    result = subprocess.run([sys.executable, str(BUILDER), "--writing-root", str(writing), "--output", str(tmp_path / "site"), "--base-path", base],
+                            cwd=ROOT, text=True, capture_output=True)
+    assert result.returncode != 0 and "base path" in result.stderr

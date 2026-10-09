@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,3 +50,76 @@ def test_script_contains_ordered_safety_gates_and_rollback():
     assert "sudo -n chmod -R a+rX" in text
     assert "malowanie-po-numerach" in text and "/api/pbn-" in text
     assert "--rollback" in text and "RELEASE_RE=" in text
+
+
+PREVIEW = ROOT / "scripts/deploy-preview.sh"
+
+
+def test_preview_helper_only_targets_the_v2_directory():
+    assert subprocess.run(["/bin/bash", "-n", PREVIEW]).returncode == 0
+    text = PREVIEW.read_text()
+    assert 'EXPECTED_HOST="ubuntu@51.83.199.206"' in text and 'PREVIEW="v2"' in text
+    assert 'mv \\"$RELEASE_DIR/.preview-$ID\\" \\"$DOCROOT/$PREVIEW\\"' in text
+    assert "nginx -" not in text and "rsync" not in text and "sites-" not in text
+    assert "noindex,nofollow" in text and '"$before" == "$after"' in text
+
+
+def test_preview_helper_refuses_missing_or_production_build(tmp_path: Path):
+    env = os.environ | {"PATH": "/usr/bin:/bin"}
+    result = subprocess.run(["/bin/bash", PREVIEW, "--yes"], cwd=tmp_path, env=env, text=True, capture_output=True)
+    assert result.returncode != 0 and "missing" in result.stderr
+    build = tmp_path / ".build/preview-v2"; build.mkdir(parents=True)
+    (build / "build-manifest.json").write_text("{}")
+    (build / "index.html").write_text('<link rel="stylesheet" href="/styles.css">')
+    result = subprocess.run(["/bin/bash", PREVIEW, "--yes"], cwd=tmp_path, env=env, text=True, capture_output=True)
+    assert result.returncode != 0 and "noindex" in result.stderr
+
+
+@pytest.mark.parametrize("tamper, reason", [
+    ("modified_file", "stale or modified artifact"),
+    ("unlisted_file", "file set differs"),
+    ("drop_noindex", "not a noindex preview page"),
+    ("escaping_link", "link escapes /v2"),
+])
+def test_preview_helper_rejects_tampered_package(tmp_path: Path, tamper: str, reason: str):
+    writing = tmp_path / "writing"
+    for rel, text in {
+        "Dobry_Ojciec/opowiadanie.md": "# Dobry Ojciec\n\nTekst.\n",
+        "Dobry_Ojciec/der_gute_vater.md": "# Der gute Vater\n\nText.\n",
+        "Kartka/kartka.md": "# Kartka\n\nTekst.\n",
+        "Mikroblog_2026/mikroblog_2026.md": "# Mikroblog 2026\n\n## 23 września 2026\n\nWpis.\n",
+    }.items():
+        (writing / rel).parent.mkdir(parents=True, exist_ok=True)
+        (writing / rel).write_text(text, encoding="utf-8")
+    build = tmp_path / ".build/preview-v2"
+    built = subprocess.run([sys.executable, str(ROOT / "scripts/build_site.py"), "--writing-root", str(writing), "--output", str(build), "--base-path", "/v2"], text=True, capture_output=True)
+    assert built.returncode == 0, built.stderr
+    page = build / "o-mnie/index.html"
+    if tamper == "modified_file":
+        page.write_text(page.read_text() + "\n")
+    elif tamper == "unlisted_file":
+        (build / "extra.html").write_text("x")
+    else:
+        # Re-sign the manifest so the page-level checks, not the hash check, must catch it.
+        if tamper == "drop_noindex":
+            page.write_text(page.read_text().replace('content="noindex,nofollow"', 'content="index"'))
+        else:
+            original = page.read_text()
+            assert 'href="/v2/"' in original
+            page.write_text(original.replace('href="/v2/"', 'href="/"'))
+        manifest = json.loads((build / "build-manifest.json").read_text())
+        for item in manifest["artifacts"]:
+            item["sha256"] = hashlib.sha256((build / item["path"]).read_bytes()).hexdigest()
+        (build / "build-manifest.json").write_text(json.dumps(manifest))
+    # These rejection tests must never contact the preview host, even if a
+    # mutation stops changing the page and the helper unexpectedly accepts it.
+    guard = tmp_path / "network-guard"
+    guard.mkdir()
+    for command in ("ssh", "scp", "curl"):
+        executable = guard / command
+        executable.write_text("#!/bin/sh\necho network-forbidden >&2\nexit 90\n")
+        executable.chmod(0o755)
+    env = os.environ | {"PATH": f"{guard}:/usr/bin:/bin"}
+    env.pop("PYTHONPATH", None)
+    result = subprocess.run(["/bin/bash", str(PREVIEW), "--yes"], cwd=tmp_path, env=env, text=True, capture_output=True)
+    assert result.returncode != 0 and "failed verification" in result.stderr and reason in result.stderr

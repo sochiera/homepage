@@ -32,7 +32,7 @@ manifest_hash() { sha256sum "$BUILD_DIR/build-manifest.json" | awk '{print $1}';
 
 check_clean_manifest() {
   [[ -f "$BUILD_DIR/build-manifest.json" ]] || die "missing build manifest"
-  .venv/bin/python - "$BUILD_DIR" <<'PY'
+  .venv/bin/python3 - "$BUILD_DIR" <<'PY'
 import hashlib, json, pathlib, sys
 root=pathlib.Path(sys.argv[1]); data=json.loads((root/'build-manifest.json').read_text())
 for item in data['artifacts']:
@@ -84,7 +84,9 @@ backup_current() {
 }
 
 switch_release() {
-  ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; sudo -n mkdir -p '$RELEASE_DIR'; sudo -n flock '$RELEASE_DIR/.lock' sh -c 'mv "$DOCROOT" "$RELEASE_DIR/backup-$RELEASE_ID"; if ! mv "$RELEASE_DIR/.stage-$RELEASE_ID" "$DOCROOT"; then mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"; exit 1; fi'"
+  local previous_hashes
+  previous_hashes="$(ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "sudo -n flock '$RELEASE_DIR/.lock' python3 - '$DOCROOT' '$RELEASE_DIR/.stage-$RELEASE_ID' '$RELEASE_DIR/backup-$RELEASE_ID'" < scripts/switch_release.py)" || return 1
+  read -r PREVIOUS_TREE_HASH PREVIOUS_HOME_HASH <<< "$previous_hashes"
 }
 
 verify_release() {
@@ -109,14 +111,19 @@ PY"
       actual="$(curl --fail --silent --show-error "https://$host$public_path" | sha256sum | awk '{print $1}')" || return 1
       [[ "$actual" == "$expected" ]] || return 1
     done
-  done < <(.venv/bin/python - "$BUILD_DIR/build-manifest.json" <<'PY'
+  done < <(.venv/bin/python3 - "$BUILD_DIR/build-manifest.json" <<'PY'
 import json,sys
 for item in json.load(open(sys.argv[1]))['artifacts']:
     print(item['path'], item['sha256'], sep='\t')
 PY
   )
   for host in sochiera.pl www.sochiera.pl; do
-    [[ "$(curl --silent --output /dev/null --write-out '%{http_code}' "https://$host/de/opowiadania/kartka/")" != 200 ]] || return 1
+    for public_path in /de/opowiadania/ /de/opowiadania/der-gute-vater/ /de/opowiadania/kartka/ /v2/; do
+      [[ "$(curl --silent --output /dev/null --write-out '%{http_code}' "https://$host$public_path")" == 404 ]] || return 1
+    done
+    for public_path in /poker/ /biblioteka/ /malowanie-po-numerach/; do
+      curl --fail --silent --show-error --location --head "https://$host$public_path" >/dev/null || return 1
+    done
   done
   # The /forge/ entrance is a live proxied backend (not a static artifact);
   # when the route exists it must refuse unauthenticated requests even if the
@@ -135,6 +142,16 @@ restore_backup() {
   ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; sudo -n flock '$RELEASE_DIR/.lock' sh -c 'test -d "$RELEASE_DIR/backup-$RELEASE_ID"; mv "$DOCROOT" "$RELEASE_DIR/failed-$RELEASE_ID"; mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"'"
 }
 
+verify_restored_backup() {
+  local restored host actual
+  restored="$(ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "python3 - --fingerprint '$DOCROOT'" < scripts/switch_release.py)" || return 1
+  [[ "$restored" == "$PREVIOUS_TREE_HASH" ]] || return 1
+  for host in sochiera.pl www.sochiera.pl; do
+    actual="$(curl --fail --silent --show-error "https://$host/" | sha256sum | awk '{print $1}')" || return 1
+    [[ "$actual" == "$PREVIOUS_HOME_HASH" ]] || return 1
+  done
+}
+
 manual_rollback() {
   local target="$RELEASE_DIR/backup-$ROLLBACK" failed_id="$(date -u +%Y%m%dT%H%M%SZ)-rollback"
   ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; test -d '$target'; sudo -n flock '$RELEASE_DIR/.lock' sh -c 'mv "$DOCROOT" "$RELEASE_DIR/failed-$failed_id"; mv "$target" "$DOCROOT"'"
@@ -149,5 +166,5 @@ package_release
 upload_release
 backup_current
 switch_release
-if ! verify_release; then restore_backup; verify_release || die "automatic rollback verification failed"; die "release verification failed; previous site restored"; fi
+if ! verify_release; then restore_backup; verify_restored_backup || die "automatic rollback verification failed"; die "release verification failed; previous site restored"; fi
 echo "Deployed $RELEASE_ID"
