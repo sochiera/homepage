@@ -3,14 +3,14 @@
 @font-face { font-family:"Fraunces"; src:url("fonts/fraunces-italic.woff2") format("woff2"); font-weight:300 700; font-style:italic; font-display:swap; }
 
 :root {
-  --paper:#f3efe6; --paper-2:#e9e2d4; --glow:#fbf8f1; --ink:#1a1713; --muted:#5c554b; --rule:#d5ccbb; --accent:#b2361c;
+  --paper:#f3efe6; --paper-2:#e9e2d4; --glow:#fbf8f1; --ink:#1a1713; --muted:#5c554b; --rule:#d5ccbb; --control:#857b6e; --accent:#b2361c;
   --serif:"Fraunces","Iowan Old Style","Palatino Linotype",Georgia,serif;
   --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
   --ease:cubic-bezier(.2,.7,.2,1);
   color-scheme:light dark;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --paper:#14120f; --paper-2:#211d18; --glow:#1c1915; --ink:#eee7da; --muted:#a69d8f; --rule:#37322b; --accent:#ff8a66; }
+  :root { --paper:#14120f; --paper-2:#211d18; --glow:#1c1915; --ink:#eee7da; --muted:#a69d8f; --rule:#37322b; --control:#7d7366; --accent:#ff8a66; }
 }
 
 *,*::before,*::after { box-sizing:border-box; }
@@ -39,7 +39,7 @@ header { border-bottom:1px solid var(--rule); padding-bottom:1.75rem; margin-bot
 .back a:hover { color:var(--accent); }
 .back a:first-child::before { content:"← "; }
 .tagline { margin:0; font-size:1.25rem; line-height:1.45; color:var(--muted); }
-header > p:not(.back):not(.tagline) { margin:.75rem 0 0; font-size:.9375rem; }
+.page:not(.home) header > p:not(.back):not(.tagline) { margin:.75rem 0 0; font-size:.9375rem; }
 section { margin-bottom:2.75rem; }
 section[aria-labelledby] > h2 { margin:0 0 .5rem; padding-bottom:.5rem; border-bottom:1px solid var(--ink); }
 .links li,.projects li,.career > li,.stories li { padding:.8rem 0; border-bottom:1px solid var(--rule); }
@@ -86,7 +86,7 @@ form.unlock label { font:500 .6875rem var(--mono); letter-spacing:.12em; text-tr
 @media (prefers-color-scheme: dark) { .unlock-error { color:#ff9c8a; } }
 
 /* Form controls (unlock, library search) */
-input { min-width:0; min-height:2.5rem; padding:.35rem .65rem; border:1px solid var(--rule); border-radius:.375rem; background:var(--paper); color:var(--ink); font:inherit; font-size:1rem; }
+input { min-width:0; min-height:2.5rem; padding:.35rem .65rem; border:1px solid var(--control); border-radius:.375rem; background:var(--paper); color:var(--ink); font:inherit; font-size:1rem; }
 input:focus-visible { border-color:var(--accent); outline-offset:1px; }
 button { min-height:2.5rem; padding:.35rem 1rem; border:1px solid var(--ink); border-radius:.375rem; background:var(--ink); color:var(--paper); font:500 .9375rem var(--serif); cursor:pointer; transition:background-color .2s, border-color .2s; }
 button:hover { background:var(--accent); border-color:var(--accent); }
@@ -127,7 +127,7 @@ form[action] input { flex:1 1 12rem; }
 .row-go { grid-area:go; align-self:center; justify-self:end; font:400 1.125rem/1 var(--mono); color:var(--muted); transition:transform .3s var(--ease), color .2s; }
 .row:hover .row-go { color:var(--accent); transform:translateX(.3rem); }
 .row-more { grid-area:more; }
-.row-more > summary { position:absolute; top:1.05rem; right:2rem; z-index:2; display:inline-flex; align-items:center; min-height:2.25rem; padding:0 .8rem; list-style:none; border:1px solid var(--rule); border-radius:999px; background:var(--paper); color:var(--muted); font:500 .6875rem/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; cursor:pointer; user-select:none; transition:color .2s, border-color .2s, background-color .2s; }
+.row-more > summary { position:absolute; top:1.05rem; right:2rem; z-index:2; display:inline-flex; align-items:center; min-height:2.25rem; padding:0 .8rem; list-style:none; border:1px solid var(--control); border-radius:999px; background:var(--paper); color:var(--muted); font:500 .6875rem/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; cursor:pointer; user-select:none; transition:color .2s, border-color .2s, background-color .2s; }
 .row-more > summary::-webkit-details-marker { display:none; }
 .row-more > summary::before { content:""; position:absolute; inset:-.4rem -.3rem; }
 .row-more > summary:hover { color:var(--ink); border-color:var(--ink); }

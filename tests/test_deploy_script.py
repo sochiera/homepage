@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,3 +71,30 @@ def test_preview_helper_refuses_missing_or_production_build(tmp_path: Path):
     (build / "index.html").write_text('<link rel="stylesheet" href="/styles.css">')
     result = subprocess.run(["/bin/bash", PREVIEW, "--yes"], cwd=tmp_path, env=env, text=True, capture_output=True)
     assert result.returncode != 0 and "noindex" in result.stderr
+
+
+@pytest.mark.parametrize("tamper", ["drop_noindex", "unlisted_file", "escaping_link"])
+def test_preview_helper_rejects_tampered_package(tmp_path: Path, tamper: str):
+    writing = tmp_path / "writing"
+    for rel, text in {
+        "Dobry_Ojciec/opowiadanie.md": "# Dobry Ojciec\n\nTekst.\n",
+        "Dobry_Ojciec/der_gute_vater.md": "# Der gute Vater\n\nText.\n",
+        "Kartka/kartka.md": "# Kartka\n\nTekst.\n",
+        "Mikroblog_2026/mikroblog_2026.md": "# Mikroblog 2026\n\n## 23 września 2026\n\nWpis.\n",
+    }.items():
+        (writing / rel).parent.mkdir(parents=True, exist_ok=True)
+        (writing / rel).write_text(text, encoding="utf-8")
+    build = tmp_path / ".build/preview-v2"
+    built = subprocess.run([sys.executable, str(ROOT / "scripts/build_site.py"), "--writing-root", str(writing), "--output", str(build), "--base-path", "/v2"], text=True, capture_output=True)
+    assert built.returncode == 0, built.stderr
+    page = build / "o-mnie/index.html"
+    if tamper == "drop_noindex":
+        page.write_text(page.read_text().replace('content="noindex,nofollow"', 'content="index"'))
+    elif tamper == "unlisted_file":
+        (build / "extra.html").write_text("x")
+    else:
+        page.write_text(page.read_text().replace('href="/v2/opowiadania/"', 'href="/opowiadania/"'))
+    env = os.environ | {"PATH": "/usr/bin:/bin"}
+    env.pop("PYTHONPATH", None)
+    result = subprocess.run(["/bin/bash", str(PREVIEW), "--yes"], cwd=tmp_path, env=env, text=True, capture_output=True)
+    assert result.returncode != 0 and "failed verification" in result.stderr

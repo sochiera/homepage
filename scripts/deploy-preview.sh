@@ -19,6 +19,30 @@ die() { echo "deploy-preview: $*" >&2; exit 1; }
 grep -q 'name="robots" content="noindex,nofollow"' "$BUILD_DIR/index.html" || die "build is not a noindex preview"
 grep -q "href=\"/$PREVIEW/styles.css\"" "$BUILD_DIR/index.html" || die "build was not made with --base-path /$PREVIEW"
 
+# Verify the whole package, not just the entry page: manifest hashes, exact file
+# set, noindex + preview banner + prefixed links on every page, encrypted entries.
+python3 - "$BUILD_DIR" "/$PREVIEW" <<'PY' || die "preview package failed verification"
+import hashlib, json, pathlib, re, sys, tomllib
+root, base = pathlib.Path(sys.argv[1]), sys.argv[2]
+manifest = json.loads((root / "build-manifest.json").read_text())
+listed = {item["path"]: item["sha256"] for item in manifest["artifacts"]}
+actual = {p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file() or p.is_symlink()} - {"build-manifest.json"}
+if actual != set(listed): sys.exit(f"file set differs from manifest: {sorted(actual ^ set(listed))}")
+for rel, digest in listed.items():
+    path = root / rel
+    if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != digest: sys.exit(f"stale or modified artifact: {rel}")
+for page in root.rglob("*.html"):
+    html = page.read_text(encoding="utf-8")
+    if 'name="robots" content="noindex,nofollow"' not in html or 'class="preview-flag"' not in html: sys.exit(f"not a noindex preview page: {page}")
+    for link in re.findall(r'(?:href|src|action)="(/[^"]*)"', html):
+        if not link.startswith((base + "/", "/poker/", "/malowanie-po-numerach/", "/pobierz/")): sys.exit(f"link escapes {base}: {link} in {page}")
+protected = pathlib.Path("content/protected.toml")
+if protected.is_file():
+    expected = len(tomllib.loads(protected.read_text(encoding="utf-8")).get("entries", []))
+    found = (root / "mikroblog/index.html").read_text(encoding="utf-8").count('data-protected="')
+    if found != expected: sys.exit(f"expected {expected} encrypted microblog entries, found {found}")
+PY
+
 ID="$(date -u +%Y%m%dT%H%M%SZ)-$(sha256sum "$BUILD_DIR/build-manifest.json" | cut -c1-12)"
 PACKAGE=".build/packages/preview-$ID.tar.gz"
 mkdir -p .build/packages
