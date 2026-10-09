@@ -123,3 +123,39 @@ def test_preview_helper_rejects_tampered_package(tmp_path: Path, tamper: str, re
     env.pop("PYTHONPATH", None)
     result = subprocess.run(["/bin/bash", str(PREVIEW), "--yes"], cwd=tmp_path, env=env, text=True, capture_output=True)
     assert result.returncode != 0 and "failed verification" in result.stderr and reason in result.stderr
+
+
+@pytest.mark.parametrize("backend_status, expected_exit", [(200, 0), (503, 1)])
+def test_release_verification_uses_get_for_apps_that_reject_head(tmp_path: Path, backend_status: int, expected_exit: int):
+    """Real proxy apps support GET but return 405 for HEAD; outages still fail."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    curl = bin_dir / "curl"
+    curl.write_text("#!/usr/bin/env python3\n" + f"backend_status = {backend_status}\n" + """
+import sys
+args = sys.argv[1:]
+url = args[-1]
+status = 200
+if '/de/' in url or url.endswith('/v2/'):
+    status = 404
+elif url.endswith('/forge/'):
+    status = 401
+elif url.endswith(('/poker/', '/malowanie-po-numerach/')):
+    status = 405 if '--head' in args else backend_status
+if '--write-out' in args:
+    print(status, end='')
+sys.exit(22 if '--fail' in args and status >= 400 else 0)
+""")
+    curl.chmod(0o755)
+    (tmp_path / ".venv/bin").mkdir(parents=True)
+    (tmp_path / ".venv/bin/python3").symlink_to(sys.executable)
+    build = tmp_path / ".build/site"
+    build.mkdir(parents=True)
+    (build / "build-manifest.json").write_text('{"artifacts": []}')
+    functions = SCRIPT.read_text().rsplit("\ncheck_clean_manifest\n", 1)[0]
+    result = subprocess.run(
+        ["/bin/bash", "-s", "--", "--host", "ubuntu@51.83.199.206", "--yes"], input=functions + "\nssh() { return 0; }\nif verify_release; then exit 0; else exit 1; fi\n",
+        cwd=tmp_path, env=os.environ | {"PATH": str(bin_dir) + os.pathsep + os.environ["PATH"]},
+        text=True, capture_output=True,
+    )
+    assert result.returncode == expected_exit
