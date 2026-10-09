@@ -137,7 +137,7 @@ form[action] input { flex:1 1 12rem; }
 .toggle::before,.toggle::after { content:""; position:absolute; left:50%; top:50%; width:.75rem; height:1.5px; margin:-.75px 0 0 -.375rem; background:currentColor; transition:transform .25s var(--ease); }
 .toggle::after { transform:rotate(90deg); }
 .project-more > summary:hover .toggle { color:var(--ink); border-color:var(--ink); }
-.project-more[open] .toggle { background:var(--ink); border-color:var(--ink); color:var(--paper); }
+.project-more[open] > summary .toggle { background:var(--ink); border-color:var(--ink); color:var(--paper); }
 .project-more[open] .toggle::after { transform:rotate(0deg); }
 .row-desc { max-width:34rem; margin:1rem 0 0 3.25rem; padding-left:1rem; border-left:2px solid var(--accent); font-size:1.0625rem; line-height:1.6; }
 .project-more[open] .row-desc { animation:reveal .35s var(--ease) both; }
