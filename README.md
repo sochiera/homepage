@@ -16,6 +16,8 @@ python3 -m venv .venv
 
 An unlocked entry stays unlocked on page reload in the same tab: `static/js/privacy.js` keeps the decrypted fragment in `sessionStorage` (keyed by the entry's PBKDF2 identity, 6-hour maximum), never the password itself. The record dies with the tab, is invisible to other tabs and browsers, and a rebuilt page (fresh salt) starts locked again.
 
+Stories marked `published = false` remain in the allowlist, but are not read, built or listed in links, metadata, llms.txt or the build manifest. The German translation source is retained outside this repository; its current production route is unaffected until a separately authorized production release.
+
 Only the approved paths declared in `content/stories.toml` and `content/microblog.toml` are read. Never add `.build/`, generated HTML, manuscripts, operator configuration, or secrets to Git.
 
 `--base-path /v2` builds an isolated, noindex preview of the whole site below `/v2/`; see the preview section of the runbook.

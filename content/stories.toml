@@ -22,6 +22,8 @@ profile = "standard"
 source = "Kartka/kartka.md"
 
 [[stories]]
+# Retained source; excluded from public builds and discovery.
+published = false
 language = "de"
 slug = "der-gute-vater"
 url = "/de/opowiadania/der-gute-vater/"

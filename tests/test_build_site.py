@@ -93,8 +93,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     assert result.returncode == 0, result.stderr
     expected = {
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
-        "opowiadania/kartka/index.html", "mikroblog/index.html", "de/opowiadania/index.html",
-        "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg",
+        "opowiadania/kartka/index.html", "mikroblog/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
         "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk",
         "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "llms.txt",
@@ -123,8 +122,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     about = (out / "o-mnie/index.html").read_text()
     assert 'name="robots"' not in about
     assert all(value in about for value in (
-        "Sii Poland", "Nokia", "Agent Loop", "github.com/sochiera", "linkedin.com",
-        "/opowiadania/", "/malowanie-po-numerach/",
+        "Sii Poland", "Nokia", "github.com/sochiera", "linkedin.com",
     ))
     stories_index = (out / "opowiadania/index.html").read_text()
     assert "Dobry Ojciec" in stories_index and "Kartka" in stories_index
@@ -137,8 +135,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     assert 'href="/"' in microblog
     assert '<script defer src="/js/privacy.js"></script>' in microblog
     assert microblog.count("<script") == 1
-    de_index = (out / "de/opowiadania/index.html").read_text()
-    assert "Der gute Vater" in de_index and "Kartka" not in de_index
+    assert not (out / "de").exists()
     for rel in expected:
         if rel.endswith(".html"):
             html = (out / rel).read_text()
@@ -147,20 +144,26 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
             assert not re.search(r'<link[^>]+rel="(?:stylesheet|icon)"[^>]+href="https?://', html)
 
 
-def test_chapters_translation_links_and_standard_hr(writing: Path, tmp_path: Path):
+def test_hidden_translation_is_not_published_and_source_is_preserved(writing: Path, tmp_path: Path):
     out = tmp_path / "site"
+    source = writing / "Dobry_Ojciec/der_gute_vater.md"
+    original = source.read_bytes()
     assert build(writing, out).returncode == 0
+    assert source.read_bytes() == original
+    assert not (out / "de").exists()
     pl = (out / "opowiadania/dobry-ojciec/index.html").read_text()
-    de = (out / "de/opowiadania/der-gute-vater/index.html").read_text()
-    assert pl.count('<h2 class="chapter">') == de.count('<h2 class="chapter">') == 16
-    for html in (pl, de):
-        assert html.count('<h3 class="chapter-name">Natan</h3>') == 8
-        assert html.count('<h3 class="chapter-name">Joram</h3>') == 8
-        assert "align=" not in html and "\n---\n" not in html and 'class="sep"' in html
-        assert 'hreflang="pl"' in html and 'hreflang="de"' in html
-    assert "Wersja niemiecka" in pl and "Polnische Version" in de
-    assert "Deutsche Übersetzung" not in de
+    assert pl.count('<h2 class="chapter">') == 16
+    assert pl.count('<h3 class="chapter-name">Natan</h3>') == 8
+    assert pl.count('<h3 class="chapter-name">Joram</h3>') == 8
+    assert "align=" not in pl and "\n---\n" not in pl and 'class="sep"' in pl
+    for artifact in out.rglob("*"):
+        if artifact.is_file() and artifact.suffix in {".html", ".txt", ".json"}:
+            text = artifact.read_text()
+            assert all(value not in text for value in ("der-gute-vater", "der_gute_vater", "Der gute Vater", "Wersja niemiecka", 'hreflang="de"'))
     assert "<hr>" in (out / "opowiadania/kartka/index.html").read_text()
+    # An unpublished source is never read or required by the public builder.
+    source.unlink()
+    assert build(writing, out).returncode == 0
 
 
 def test_manifest_is_complete_deterministic_and_private(writing: Path, tmp_path: Path):
@@ -172,7 +175,6 @@ def test_manifest_is_complete_deterministic_and_private(writing: Path, tmp_path:
     assert {item["path"] for item in manifest["sources"]} == {
         "Dobry_Ojciec/opowiadanie.md",
         "Kartka/kartka.md",
-        "Dobry_Ojciec/der_gute_vater.md",
         "Mikroblog_2026/mikroblog_2026.md",
     }
     for item in manifest["artifacts"]:
@@ -343,10 +345,12 @@ def test_home_bio_and_career_placement(writing: Path, tmp_path: Path):
     assert build(writing, out).returncode == 0
     home = (out / "index.html").read_text()
     lede = re.search(r'<p class="lede">(.*?)</p>', home, re.S).group(1).replace("&nbsp;", " ")
-    assert "wciągnął" not in home and all(word in lede for word in ("AI", "modele", "agentów", "harnessy", "orkiestrator"))
-    assert all(value not in home for value in ("Sii Poland", "Nokia", "Technical Leader", 'class="facts"'))
+    assert "wciągnął" not in home and all(word in lede for word in ("2013", "C++", "Pythonie", "AI", "modele", "agentów", "harnessy", "rozwijania swoich projektów"))
+    assert all(value not in home for value in ("Sii Poland", "Nokia", "Technical Leader", 'class="facts"', "piszę opowiadania", "orkiestrator", "po niemiecku", "tylko dla bliskich"))
     about = (out / "o-mnie/index.html").read_text()
-    assert "wciągnął" not in about and "Technical Leader" in about and "Sii Poland" in about
+    assert "Technical Leader" in about and "Sii Poland" in about
+    assert "rozwijania swoich projektów" in about
+    assert all(value not in about for value in ("orkiestrator", "Ostatnie projekty", "Twórczość literacka", "Agent Loop"))
 
 
 def test_llms_txt_lists_only_public_pages(locked: dict, tmp_path: Path):
@@ -354,8 +358,9 @@ def test_llms_txt_lists_only_public_pages(locked: dict, tmp_path: Path):
     result = build(locked["writing"], out, protected=locked["protected"], password=locked["password"])
     assert result.returncode == 0, result.stderr
     llms = (out / "llms.txt").read_text(encoding="utf-8")
-    assert llms.startswith("# Jan Sochiera\n\n> ") and "orkiestrator" in llms
-    for url in ("https://sochiera.pl/o-mnie/", "https://sochiera.pl/opowiadania/kartka/", "https://sochiera.pl/de/opowiadania/der-gute-vater/",
+    assert llms.startswith("# Jan Sochiera\n\n> ") and "rozwijania swoich projektów" in llms
+    assert "orkiestrator" not in llms and "pisze opowiadania" not in llms
+    for url in ("https://sochiera.pl/o-mnie/", "https://sochiera.pl/opowiadania/kartka/",
                 "https://sochiera.pl/mikroblog/", "https://malowanie.sochiera.pl/", "https://sochiera.pl/poker/"):
         assert f"]({url})" in llms
     assert "biblioteka" not in llms and ".apk" not in llms and "&amp;" not in llms

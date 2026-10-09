@@ -2,14 +2,14 @@
 
 > {{ description }}
 
-Jan Sochiera buduje oprogramowanie od 2013 roku i pisze opowiadania. Ostatnio rozwija się w AI: testuje modele, agentów i harnessy, dopracowuje własny sposób pracy z nimi i napisał własny orkiestrator.
+Jan Sochiera buduje oprogramowanie od 2013 roku, rozwijając się w C++ i Pythonie. Ostatnio rozwija się w AI: testuje modele, agentów i harnessy, dopracowuje własny sposób pracy z nimi i wykorzystuje AI do rozwijania swoich projektów.
 
-Strona jest po polsku, jedno opowiadanie ma też wersję niemiecką. Wszystkie publiczne treści są zwykłym HTML i nie wymagają JavaScriptu. Część wpisów mikrobloga jest zaszyfrowana i przeznaczona tylko dla bliskich; ich treść nie jest publiczna.
+Strona jest po polsku. Wszystkie publiczne treści są zwykłym HTML i nie wymagają JavaScriptu. Zaszyfrowane treści mikrobloga nie są publiczne.
 
 ## Strony
 
 - [Strona główna]({{ site }}/): wizytówka, linki do stron i projektów.
-- [O mnie]({{ site }}/o-mnie/): kariera (Sii Poland od 2024, wcześniej Nokia 2013–2024), projekty i twórczość literacka.
+- [O mnie]({{ site }}/o-mnie/): kariera (Sii Poland od 2024, wcześniej Nokia 2013–2024).
 - [Opowiadania]({{ site }}/opowiadania/): spis opowiadań po polsku.
 - [{{ microblog.title }}]({{ site }}{{ microblog.url }}): {{ microblog.description }}
 

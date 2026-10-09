@@ -79,14 +79,20 @@ def load_stories(writing_root: Path) -> list[dict]:
     if {s.get("source") for s in stories} != EXPECTED_SOURCES or len(stories) != 3:
         fail("story allowlist must contain exactly the three approved sources")
     urls, slugs = set(), set()
+    public_stories = []
     for story in stories:
         if story["language"] not in {"pl", "de"} or story["profile"] not in {"chaptered", "standard"}:
             fail("unexpected language or render profile")
         if story["url"] in urls or (story["language"], story["slug"]) in slugs:
             fail("duplicate output URL or slug")
         urls.add(story["url"]); slugs.add((story["language"], story["slug"]))
-        story["path"] = resolve_source(writing_root, story["source"])
-    return stories
+        published = story.get("published", True)
+        if not isinstance(published, bool):
+            fail("story published flag must be boolean")
+        if published:
+            story["path"] = resolve_source(writing_root, story["source"])
+            public_stories.append(story)
+    return public_stories
 
 
 def load_microblog(writing_root: Path) -> dict:
@@ -199,7 +205,7 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
         if base: values["robots"] = "noindex,nofollow"
         target.write_text(env.get_template(template).render(**values), encoding="utf-8")
     write("index.html", "home.html", lang="pl", title="Jan Sochiera — strona główna", og_title="Jan Sochiera — strona główna", description=HOME_DESCRIPTION, canonical=BASE_URL + "/")
-    write(output_path("/o-mnie/"), "about.html", lang="pl", title="O mnie — Jan Sochiera", og_title="O mnie — Jan Sochiera", description="Jan Sochiera — inżynier oprogramowania, kariera, projekty i twórczość literacka.", canonical=BASE_URL + "/o-mnie/")
+    write(output_path("/o-mnie/"), "about.html", lang="pl", title="O mnie — Jan Sochiera", og_title="O mnie — Jan Sochiera", description="Jan Sochiera — inżynier oprogramowania, doświadczenie zawodowe i kariera.", canonical=BASE_URL + "/o-mnie/")
     write(output_path("/biblioteka/"), "library.html", lang="pl", title="Biblioteka — Jan Sochiera", og_title="Biblioteka — Jan Sochiera", description="Ukryta wyszukiwarka książek.", canonical=BASE_URL + "/biblioteka/", robots="noindex,nofollow")
     protected_headings = {entry["heading"] for entry in protected["entries"]}
     entries = []
@@ -220,6 +226,8 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     write(output_path(microblog["url"]), "microblog.html", lang="pl", microblog=microblog, title=f'{microblog["title"]} — Jan Sochiera', og_title=microblog["title"], description=microblog["description"], canonical=BASE_URL + microblog["url"])
     for lang, url, heading in (("pl", "/opowiadania/", "Opowiadania"), ("de", "/de/opowiadania/", "Erzählungen")):
         listed = [s for s in stories if s["language"] == lang]
+        if not listed:
+            continue
         write(output_path(url), "stories-index.html", lang=lang, stories=listed, title=f"{heading} — Jan Sochiera", og_title=heading, description=("Opowiadania Jana Sochiery." if lang == "pl" else "Erzählungen von Jan Sochiera."), canonical=BASE_URL + url)
     by_slug = {s["slug"]: s for s in stories}
     for story in stories:
@@ -242,7 +250,7 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     (staging / "build-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def validate_output(staging: Path, base: str = "") -> None:
-    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "de/opowiadania/index.html", "de/opowiadania/der-gute-vater/index.html", "llms.txt", *STATIC_FILES}
+    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "llms.txt", *STATIC_FILES}
     actual = {p.relative_to(staging).as_posix() for p in staging.rglob("*") if p.is_file()}
     if actual != expected or any(p.is_symlink() for p in staging.rglob("*")): fail("unexpected publish tree")
     for page in staging.rglob("*.html"):

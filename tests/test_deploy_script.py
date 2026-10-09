@@ -104,12 +104,22 @@ def test_preview_helper_rejects_tampered_package(tmp_path: Path, tamper: str, re
         if tamper == "drop_noindex":
             page.write_text(page.read_text().replace('content="noindex,nofollow"', 'content="index"'))
         else:
-            page.write_text(page.read_text().replace('href="/v2/opowiadania/"', 'href="/opowiadania/"'))
+            original = page.read_text()
+            assert 'href="/v2/"' in original
+            page.write_text(original.replace('href="/v2/"', 'href="/"'))
         manifest = json.loads((build / "build-manifest.json").read_text())
         for item in manifest["artifacts"]:
             item["sha256"] = hashlib.sha256((build / item["path"]).read_bytes()).hexdigest()
         (build / "build-manifest.json").write_text(json.dumps(manifest))
-    env = os.environ | {"PATH": "/usr/bin:/bin"}
+    # These rejection tests must never contact the preview host, even if a
+    # mutation stops changing the page and the helper unexpectedly accepts it.
+    guard = tmp_path / "network-guard"
+    guard.mkdir()
+    for command in ("ssh", "scp", "curl"):
+        executable = guard / command
+        executable.write_text("#!/bin/sh\necho network-forbidden >&2\nexit 90\n")
+        executable.chmod(0o755)
+    env = os.environ | {"PATH": f"{guard}:/usr/bin:/bin"}
     env.pop("PYTHONPATH", None)
     result = subprocess.run(["/bin/bash", str(PREVIEW), "--yes"], cwd=tmp_path, env=env, text=True, capture_output=True)
     assert result.returncode != 0 and "failed verification" in result.stderr and reason in result.stderr
