@@ -18,4 +18,8 @@ An unlocked entry stays unlocked on page reload in the same tab: `static/js/priv
 
 Only the approved paths declared in `content/stories.toml` and `content/microblog.toml` are read. Never add `.build/`, generated HTML, manuscripts, operator configuration, or secrets to Git.
 
+`--base-path /v2` builds an isolated, noindex preview of the whole site below `/v2/`; see the preview section of the runbook.
+
+The homepage typeface is Fraunces (SIL OFL 1.1, `static/fonts/OFL.txt`), self-hosted as a Latin/Latin Extended-A woff2 subset; the portrait in `static/img/` is a cropped copy with metadata stripped.
+
 Production operators use the preconfigured SSH alias `old-vps`; connection details do not belong in this repository. See [deploy/RUNBOOK.md](deploy/RUNBOOK.md).

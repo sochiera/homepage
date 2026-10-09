@@ -97,6 +97,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "de/opowiadania/der-gute-vater/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
         "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk",
+        "img/jan-sochiera.jpg", "fonts/fraunces.woff2", "fonts/fraunces-italic.woff2", "fonts/OFL.txt",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
     home = (out / "index.html").read_text()
@@ -108,7 +109,11 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("https://malowanie.sochiera.pl/", "Generator malowania po numerach"),
         ("/poker/", "Poker"),
         ("/pobierz/mealspire-1.2.apk", "Mealspire — aplikacja na Androida (APK 1.2)"),
+        ("https://github.com/sochiera", "GitHub"),
+        ("https://www.linkedin.com/in/jan-sochiera-a98bb7a8/", "LinkedIn"),
     ]
+    assert "Wybierz, dokąd chcesz przejść." in home
+    assert '<img class="portrait" src="/img/jan-sochiera.jpg"' in home and 'alt="Jan Sochiera, portret"' in home
     assert 'href="/malowanie-po-numerach/"' not in home
     assert "/biblioteka/" not in home
     library = (out / "biblioteka/index.html").read_text()
@@ -199,7 +204,7 @@ def test_repository_does_not_track_generated_or_manuscript_text():
     assert not any(p == "site" or p.startswith(("site/", ".build/")) for p in tracked)
     writing_root = Path("/home/jan/Sources/writing")
     if writing_root.is_dir():
-        tracked_text = "\n".join((ROOT / path).read_text(encoding="utf-8") for path in tracked)
+        tracked_text = "\n".join((ROOT / path).read_bytes().decode("utf-8", errors="ignore") for path in tracked)
         for relative in (
             "Dobry_Ojciec/opowiadanie.md",
             "Kartka/kartka.md",
@@ -315,3 +320,51 @@ def test_microblog_rejects_undated_invalid_or_duplicate_headings(writing: Path, 
     source.write_text(source.read_text(encoding="utf-8") + f"\n## {heading}\n\nWpis.\n", encoding="utf-8")
     result = build(writing, tmp_path / "site")
     assert result.returncode != 0 and "date" in result.stderr
+
+
+def test_home_project_rows_have_expandable_descriptions(writing: Path, tmp_path: Path):
+    out = tmp_path / "site"
+    assert build(writing, out).returncode == 0
+    home = (out / "index.html").read_text()
+    rows = re.findall(r'<li class="row">(.*?)</li>', home, re.S)
+    assert len(rows) == 6
+    for row in rows[3:]:
+        summary = re.search(r'<details class="row-more"><summary><span class="sr-only">Opis: [^<]+</span>', row)
+        assert summary and '<p class="row-desc">' in row
+        assert row.index("<a ") < row.index("<details")  # the link itself stays one click away, outside the toggle
+    assert all("<details" not in row for row in rows[:3])
+
+
+def test_home_keeps_mealspire_publisher_contract(writing: Path, tmp_path: Path):
+    """mealspire deploy/publish-vps.py rewrites exactly this anchor in the live index.html."""
+    out = tmp_path / "site"
+    assert build(writing, out).returncode == 0
+    pattern = re.compile(r'<a href="/pobierz/mealspire-([0-9]+\.[0-9]+)\.apk" download>Mealspire — aplikacja na Androida \(APK \1\)</a>')
+    assert len(pattern.findall((out / "index.html").read_text())) == 1
+
+
+def test_base_path_preview_is_isolated_and_noindex(locked: dict, tmp_path: Path):
+    out = tmp_path / "preview"
+    command_out = build(locked["writing"], out, protected=locked["protected"], password=locked["password"])
+    assert command_out.returncode == 0
+    result = subprocess.run([sys.executable, str(BUILDER), "--writing-root", str(locked["writing"]), "--output", str(out),
+                             "--protected-file", str(locked["protected"]), "--password-file", str(locked["password"]), "--base-path", "/v2"],
+                            cwd=ROOT, text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr
+    for page in out.rglob("*.html"):
+        html = page.read_text()
+        assert 'name="robots" content="noindex,nofollow"' in html and 'class="preview-flag"' in html
+        for link in re.findall(r'(?:href|src|action)="(/[^"]*)"', html):
+            assert link.startswith(("/v2/", "/poker/", "/malowanie-po-numerach/", "/pobierz/")), (page, link)
+    home = (out / "index.html").read_text()
+    assert 'href="/v2/o-mnie/"' in home and 'href="/poker/"' in home and 'href="/pobierz/mealspire-1.2.apk" download' in home
+    microblog = (out / "mikroblog/index.html").read_text()
+    assert '<script defer src="/v2/js/privacy.js"></script>' in microblog and 'href="/v2/"' in microblog
+    assert PROTECTED_MARKING not in microblog and 'section class="locked-entry" data-protected="' in microblog
+
+
+@pytest.mark.parametrize("base", ["v2", "/v2/", "/../x", "/V2", "/a/b"])
+def test_base_path_is_constrained(writing: Path, tmp_path: Path, base: str):
+    result = subprocess.run([sys.executable, str(BUILDER), "--writing-root", str(writing), "--output", str(tmp_path / "site"), "--base-path", base],
+                            cwd=ROOT, text=True, capture_output=True)
+    assert result.returncode != 0 and "base path" in result.stderr

@@ -16,3 +16,15 @@ scripts/deploy.sh --host ubuntu@51.83.199.206 --rollback 20260907T120000Z-012345
 ```
 
 Rollback accepts only the constrained release-ID form, preserves the replaced tree, and repeats the verification matrix. The connection target and private-key filename are intentionally fixed in the helper; never put key contents, credentials, passwords, or other secrets in this repository.
+
+## Isolated preview (`/v2/`)
+
+A redesign can be reviewed live without touching production. Build the whole site below a prefix (every page gets `noindex,nofollow` and a preview banner; links to `/poker/`, `/malowanie-po-numerach/` and `/pobierz/` stay at the root):
+
+```bash
+.venv/bin/python scripts/build_site.py --writing-root /home/jan/Sources/writing --output .build/preview-v2 --base-path /v2 \
+  --protected-file content/protected.toml --password-file /home/jan/.config/sochiera/blog-password
+scripts/deploy-preview.sh   # add --yes for operator automation
+```
+
+The helper replaces only `/var/www/sochiera/v2` (the previous preview is kept as `/var/www/sochiera-releases/preview-backup-<id>`), checks the preview routes and confirms the production homepage bytes did not change. nginx already serves `/v2/` through the static `location /`. The next production release (`scripts/deploy.sh`) swaps the whole docroot and therefore removes the preview; to remove it earlier, move `/var/www/sochiera/v2` into the release directory.

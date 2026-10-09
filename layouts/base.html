@@ -6,17 +6,22 @@
   <title>{{ title }}</title>
 {% if robots is defined and robots %}  <meta name="robots" content="{{ robots }}">
 {% endif %}  <meta name="description" content="{{ description }}">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#14120f" media="(prefers-color-scheme: dark)">
   <meta property="og:title" content="{{ og_title }}">
   <meta property="og:description" content="{{ description }}">
   <meta property="og:url" content="{{ canonical }}">
   <meta property="og:type" content="website">
   <link rel="canonical" href="{{ canonical }}">
 {% for alternate in alternates %}  <link rel="alternate" hreflang="{{ alternate.lang }}" href="{{ alternate.url }}">
-{% endfor %}  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css">
+{% endfor %}  <link rel="icon" href="{{ base }}/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="{{ base }}/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ base }}/styles.css">
 </head>
-<body>
-<main>
+<body class="{% block page %}page{% endblock %}">
+{% if base %}<aside class="preview-flag" aria-label="Podgląd"><p>Podgląd {{ base }}/ — wersja testowa, nieindeksowana</p></aside>
+{% endif %}<main>
 {% block content %}{% endblock %}
 </main>
 {% block scripts %}{% endblock %}

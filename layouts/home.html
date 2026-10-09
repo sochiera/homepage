@@ -1,7 +1,37 @@
 {% extends "base.html" %}
+{% block page %}page home{% endblock %}
 {% block content %}
-  <header><h1>Jan Sochiera</h1><p class="tagline">Wybierz, dokąd chcesz przejść.</p></header>
-  <section aria-labelledby="linki"><h2 id="linki">Linki</h2><ul class="links">
-    <li><a href="/o-mnie/">O mnie</a></li><li><a href="/opowiadania/">Opowiadania</a></li><li><a href="/mikroblog/">Mikroblog</a></li><li><a href="https://malowanie.sochiera.pl/">Generator malowania po numerach</a></li><li><a href="/poker/">Poker</a></li><li><a href="/pobierz/mealspire-1.2.apk" download>Mealspire — aplikacja na Androida (APK 1.2)</a></li>
-  </ul></section>
+  <header class="masthead">
+    <img class="portrait" src="{{ base }}/img/jan-sochiera.jpg" width="384" height="384" alt="Jan Sochiera, portret">
+    <p class="kicker">Inżynier oprogramowania · Wrocław</p>
+    <h1 class="display"><span>Jan</span> <span>Sochiera</span></h1>
+    <p class="lede">Buduję oprogramowanie od&nbsp;2013 roku i&nbsp;piszę opowiadania. Ostatnio mocno wciągnął mnie świat AI.</p>
+    <dl class="facts">
+      <div><dt>Teraz</dt><dd>Software Developer w&nbsp;Sii Poland</dd></div>
+      <div><dt>Wcześniej</dt><dd>Nokia, 2013–2024: od C++ do Technical Leadera</dd></div>
+    </dl>
+  </header>
+  <nav class="index" aria-labelledby="linki">
+    <h2 id="linki" class="index-lead">Wybierz, dokąd chcesz przejść.</h2>
+    <section aria-labelledby="strony"><h3 id="strony" class="label">Na tej stronie</h3><ol class="rows">
+      <li class="row"><span class="row-no" aria-hidden="true">01</span><span class="row-title"><a href="{{ base }}/o-mnie/">O mnie</a></span><span class="row-note">Kariera, projekty i&nbsp;twórczość w&nbsp;skrócie.</span><span class="row-go" aria-hidden="true">→</span></li>
+      <li class="row"><span class="row-no" aria-hidden="true">02</span><span class="row-title"><a href="{{ base }}/opowiadania/">Opowiadania</a></span><span class="row-note">Proza po polsku, jedno opowiadanie także po niemiecku.</span><span class="row-go" aria-hidden="true">→</span></li>
+      <li class="row"><span class="row-no" aria-hidden="true">03</span><span class="row-title"><a href="{{ base }}/mikroblog/">Mikroblog</a></span><span class="row-note">Krótkie przemyślenia; część wpisów tylko dla bliskich.</span><span class="row-go" aria-hidden="true">→</span></li>
+    </ol></section>
+    <section aria-labelledby="projekty"><h3 id="projekty" class="label">Projekty</h3><ol class="rows">
+      <li class="row"><span class="row-no" aria-hidden="true">04</span><span class="row-title"><a href="https://malowanie.sochiera.pl/">Generator malowania po numerach</a></span><span class="row-note">Aplikacja webowa · malowanie.sochiera.pl</span><span class="row-go" aria-hidden="true">↗</span>
+        <details class="row-more"><summary><span class="sr-only">Opis: Generator malowania po numerach</span><span class="more-label" aria-hidden="true">opis</span></summary>
+          <p class="row-desc">Zamienia zdjęcie w&nbsp;zestaw do malowania po numerach: kolorowy podgląd, szablon do druku z&nbsp;ponumerowanymi polami i&nbsp;legendę palety barw.</p></details></li>
+      <li class="row"><span class="row-no" aria-hidden="true">05</span><span class="row-title"><a href="/poker/">Poker</a></span><span class="row-note">Planning poker dla zespołu, w&nbsp;czasie rzeczywistym.</span><span class="row-go" aria-hidden="true">→</span>
+        <details class="row-more"><summary><span class="sr-only">Opis: Poker</span><span class="more-label" aria-hidden="true">opis</span></summary>
+          <p class="row-desc">Pointy: uczestnicy wchodzą przez link i&nbsp;głosują prywatnie, a&nbsp;prowadzący jednym ruchem odsłania wszystkie karty razem ze statystykami.</p></details></li>
+      <li class="row"><span class="row-no" aria-hidden="true">06</span><span class="row-title"><a href="/pobierz/mealspire-1.2.apk" download>Mealspire — aplikacja na Androida (APK 1.2)</a></span><span class="row-note">Pobierasz plik APK prosto na telefon.</span><span class="row-go" aria-hidden="true">↓</span>
+        <details class="row-more"><summary><span class="sr-only">Opis: Mealspire</span><span class="more-label" aria-hidden="true">opis</span></summary>
+          <p class="row-desc">Podpowiada, co ugotować: wybierasz porę dnia jednym dotknięciem i&nbsp;od razu dostajesz kilka prostych propozycji. Pełny przepis powstaje dopiero wtedy, gdy któryś pomysł Ci się spodoba, a&nbsp;aplikacja uczy się Twojej kuchni.</p></details></li>
+    </ol></section>
+  </nav>
+  <footer class="colophon">
+    <p><span class="label">Gdzie indziej</span> <a href="https://github.com/sochiera">GitHub</a> <a href="https://www.linkedin.com/in/jan-sochiera-a98bb7a8/">LinkedIn</a></p>
+    <p class="fine">© Jan Sochiera</p>
+  </footer>
 {% endblock %}

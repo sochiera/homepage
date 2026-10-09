@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% block page %}page about{% endblock %}
 {% block content %}
-  <header><h1>Jan Sochiera</h1><p class="tagline">Inżynier oprogramowania. Ostatnio mocno wciągnął mnie świat AI.</p></header>
+  <header><p class="back"><a href="{{ base }}/">Strona główna</a></p><h1>Jan Sochiera</h1><p class="tagline">Inżynier oprogramowania. Ostatnio mocno wciągnął mnie świat AI.</p></header>
   <section aria-labelledby="linki"><h2 id="linki">Linki</h2><ul class="links">
     <li><a href="https://github.com/sochiera">GitHub</a></li><li><a href="https://www.linkedin.com/in/jan-sochiera-a98bb7a8/">LinkedIn</a></li>
   </ul></section>
@@ -11,5 +12,5 @@
     </ul></li>
   </ul></section>
   <section aria-labelledby="projekty"><h2 id="projekty">Ostatnie projekty</h2><ul class="projects"><li><a href="/malowanie-po-numerach/">Malowanie</a></li><li><a href="https://github.com/sochiera/agent-loop">Agent Loop</a></li></ul></section>
-  <section aria-labelledby="pisanie"><h2 id="pisanie">Twórczość literacka</h2><p><a href="/opowiadania/">Czytaj na sochiera.pl</a> · <a href="https://github.com/sochiera/writing">Teksty na GitHubie</a></p></section>
+  <section aria-labelledby="pisanie"><h2 id="pisanie">Twórczość literacka</h2><p><a href="{{ base }}/opowiadania/">Czytaj na sochiera.pl</a> · <a href="https://github.com/sochiera/writing">Teksty na GitHubie</a></p></section>
 {% endblock %}

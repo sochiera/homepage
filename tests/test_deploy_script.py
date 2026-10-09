@@ -45,3 +45,26 @@ def test_script_contains_ordered_safety_gates_and_rollback():
     assert "sudo -n chmod -R a+rX" in text
     assert "malowanie-po-numerach" in text and "/api/pbn-" in text
     assert "--rollback" in text and "RELEASE_RE=" in text
+
+
+PREVIEW = ROOT / "scripts/deploy-preview.sh"
+
+
+def test_preview_helper_only_targets_the_v2_directory():
+    assert subprocess.run(["/bin/bash", "-n", PREVIEW]).returncode == 0
+    text = PREVIEW.read_text()
+    assert 'EXPECTED_HOST="ubuntu@51.83.199.206"' in text and 'PREVIEW="v2"' in text
+    assert 'mv \\"$RELEASE_DIR/.preview-$ID\\" \\"$DOCROOT/$PREVIEW\\"' in text
+    assert "nginx -" not in text and "rsync" not in text and "sites-" not in text
+    assert "noindex,nofollow" in text and '"$before" == "$after"' in text
+
+
+def test_preview_helper_refuses_missing_or_production_build(tmp_path: Path):
+    env = os.environ | {"PATH": "/usr/bin:/bin"}
+    result = subprocess.run(["/bin/bash", PREVIEW, "--yes"], cwd=tmp_path, env=env, text=True, capture_output=True)
+    assert result.returncode != 0 and "missing" in result.stderr
+    build = tmp_path / ".build/preview-v2"; build.mkdir(parents=True)
+    (build / "build-manifest.json").write_text("{}")
+    (build / "index.html").write_text('<link rel="stylesheet" href="/styles.css">')
+    result = subprocess.run(["/bin/bash", PREVIEW, "--yes"], cwd=tmp_path, env=env, text=True, capture_output=True)
+    assert result.returncode != 0 and "noindex" in result.stderr
