@@ -122,7 +122,7 @@ PY
       [[ "$(curl --silent --output /dev/null --write-out '%{http_code}' "https://$host$public_path")" == 404 ]] || return 1
     done
     for public_path in /poker/ /biblioteka/ /malowanie-po-numerach/; do
-      curl --fail --silent --show-error --location --head "https://$host$public_path" >/dev/null || return 1
+      curl --fail --silent --show-error --location --output /dev/null "https://$host$public_path" || return 1
     done
   done
   # The /forge/ entrance is a live proxied backend (not a static artifact);
@@ -134,7 +134,7 @@ PY
     404|401|403) ;;
     *) return 1 ;;
   esac
-  curl --fail --silent --show-error --location --head https://sochiera.pl/malowanie-po-numerach/ >/dev/null
+  curl --fail --silent --show-error --location --output /dev/null https://sochiera.pl/malowanie-po-numerach/ || return 1
   ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "test -d '$DOCROOT' && sudo -n nginx -T 2>&1 | grep -q '/api/pbn-'"
 }
 
