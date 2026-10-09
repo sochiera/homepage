@@ -95,7 +95,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
         "opowiadania/kartka/index.html", "mikroblog/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
-        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk",
+        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-wersja.json",
         "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "llms.txt",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
@@ -107,7 +107,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("/mikroblog/", "Mikroblog"),
         ("https://malowanie.sochiera.pl/", "Otwórz generator"),
         ("/poker/", "Otwórz Poker"),
-        ("/pobierz/mealspire-1.2.apk", "Mealspire — aplikacja na Androida (APK 1.2)"),
+        ("/pobierz/mealspire-1.5.apk", "Mealspire — aplikacja na Androida (APK 1.5)"),
         ("https://github.com/sochiera", "GitHub"),
         ("https://www.linkedin.com/in/jan-sochiera-a98bb7a8/", "LinkedIn"),
     ]
@@ -345,7 +345,7 @@ def test_home_bio_and_career_placement(writing: Path, tmp_path: Path):
     assert build(writing, out).returncode == 0
     home = (out / "index.html").read_text()
     lede = re.search(r'<p class="lede">(.*?)</p>', home, re.S).group(1).replace("&nbsp;", " ")
-    assert "wciągnął" not in home and all(word in lede for word in ("2013", "C++", "Pythonie", "AI", "modele", "agentów", "harnessy", "rozwijania swoich projektów"))
+    assert "wciągnął" not in home and all(word in lede for word in ("2013", "C++", "Python", "język macierzysty", "drugą specjalizacją", "AI", "modele", "agentów", "harnessy", "rozwijania swoich projektów"))
     assert all(value not in home for value in ("Sii Poland", "Nokia", "Technical Leader", 'class="facts"', "piszę opowiadania", "orkiestrator", "po niemiecku", "tylko dla bliskich"))
     about = (out / "o-mnie/index.html").read_text()
     assert "Technical Leader" in about and "Sii Poland" in about
@@ -392,7 +392,7 @@ def test_base_path_preview_is_isolated_and_noindex(locked: dict, tmp_path: Path)
             assert link.startswith(("/v2/", "/poker/", "/malowanie-po-numerach/", "/pobierz/")), (page, link)
     home = (out / "index.html").read_text()
     assert "](https://sochiera.pl/v2/o-mnie/)" in (out / "llms.txt").read_text() and "](https://sochiera.pl/poker/)" in (out / "llms.txt").read_text()
-    assert 'href="/v2/o-mnie/"' in home and 'href="/poker/"' in home and 'href="/pobierz/mealspire-1.2.apk" download' in home
+    assert 'href="/v2/o-mnie/"' in home and 'href="/poker/"' in home and 'href="/pobierz/mealspire-1.5.apk" download' in home
     microblog = (out / "mikroblog/index.html").read_text()
     assert '<script defer src="/v2/js/privacy.js"></script>' in microblog and 'href="/v2/"' in microblog
     assert PROTECTED_MARKING not in microblog and 'section class="locked-entry" data-protected="' in microblog

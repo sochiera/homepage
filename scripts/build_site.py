@@ -38,7 +38,7 @@ POLISH_MONTHS = ("stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "
 # are always linked at the site root, even from a preview built under a base path.
 ROOT_ONLY_PREFIXES = ("/malowanie-po-numerach/", "/poker/", "/pobierz/")
 BASE_PATH_RE = re.compile(r"^(/[a-z0-9][a-z0-9-]*)?$")
-STATIC_FILES = ("styles.css", "favicon.svg", "js/privacy.js", "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "pobierz/mealspire-1.2.apk")
+STATIC_FILES = ("styles.css", "favicon.svg", "js/privacy.js", "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-wersja.json")
 HOME_DESCRIPTION = "Jan Sochiera — inżynier oprogramowania z Wrocławia. Opowiadania, mikroblog i projekty: generator malowania po numerach, planning poker i aplikacja Mealspire."
 ALLOWED_HTML = [
     re.compile(r'^<h3 align="center">([IVX]+)</h3>$'),

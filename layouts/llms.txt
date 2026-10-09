@@ -2,7 +2,7 @@
 
 > {{ description }}
 
-Jan Sochiera buduje oprogramowanie od 2013 roku, rozwijając się w C++ i Pythonie. Ostatnio rozwija się w AI: testuje modele, agentów i harnessy, dopracowuje własny sposób pracy z nimi i wykorzystuje AI do rozwijania swoich projektów.
+Jan Sochiera buduje oprogramowanie od 2013 roku. C++ to jego język macierzysty, a Python jest jego drugą specjalizacją. Ostatnio rozwija się w AI: testuje modele, agentów i harnessy, dopracowuje własny sposób pracy z nimi i wykorzystuje AI do rozwijania swoich projektów.
 
 Strona jest po polsku. Wszystkie publiczne treści są zwykłym HTML i nie wymagają JavaScriptu. Zaszyfrowane treści mikrobloga nie są publiczne.
 
