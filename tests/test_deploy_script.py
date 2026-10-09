@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -73,8 +75,13 @@ def test_preview_helper_refuses_missing_or_production_build(tmp_path: Path):
     assert result.returncode != 0 and "noindex" in result.stderr
 
 
-@pytest.mark.parametrize("tamper", ["drop_noindex", "unlisted_file", "escaping_link"])
-def test_preview_helper_rejects_tampered_package(tmp_path: Path, tamper: str):
+@pytest.mark.parametrize("tamper, reason", [
+    ("modified_file", "stale or modified artifact"),
+    ("unlisted_file", "file set differs"),
+    ("drop_noindex", "not a noindex preview page"),
+    ("escaping_link", "link escapes /v2"),
+])
+def test_preview_helper_rejects_tampered_package(tmp_path: Path, tamper: str, reason: str):
     writing = tmp_path / "writing"
     for rel, text in {
         "Dobry_Ojciec/opowiadanie.md": "# Dobry Ojciec\n\nTekst.\n",
@@ -88,13 +95,21 @@ def test_preview_helper_rejects_tampered_package(tmp_path: Path, tamper: str):
     built = subprocess.run([sys.executable, str(ROOT / "scripts/build_site.py"), "--writing-root", str(writing), "--output", str(build), "--base-path", "/v2"], text=True, capture_output=True)
     assert built.returncode == 0, built.stderr
     page = build / "o-mnie/index.html"
-    if tamper == "drop_noindex":
-        page.write_text(page.read_text().replace('content="noindex,nofollow"', 'content="index"'))
+    if tamper == "modified_file":
+        page.write_text(page.read_text() + "\n")
     elif tamper == "unlisted_file":
         (build / "extra.html").write_text("x")
     else:
-        page.write_text(page.read_text().replace('href="/v2/opowiadania/"', 'href="/opowiadania/"'))
+        # Re-sign the manifest so the page-level checks, not the hash check, must catch it.
+        if tamper == "drop_noindex":
+            page.write_text(page.read_text().replace('content="noindex,nofollow"', 'content="index"'))
+        else:
+            page.write_text(page.read_text().replace('href="/v2/opowiadania/"', 'href="/opowiadania/"'))
+        manifest = json.loads((build / "build-manifest.json").read_text())
+        for item in manifest["artifacts"]:
+            item["sha256"] = hashlib.sha256((build / item["path"]).read_bytes()).hexdigest()
+        (build / "build-manifest.json").write_text(json.dumps(manifest))
     env = os.environ | {"PATH": "/usr/bin:/bin"}
     env.pop("PYTHONPATH", None)
     result = subprocess.run(["/bin/bash", str(PREVIEW), "--yes"], cwd=tmp_path, env=env, text=True, capture_output=True)
-    assert result.returncode != 0 and "failed verification" in result.stderr
+    assert result.returncode != 0 and "failed verification" in result.stderr and reason in result.stderr
