@@ -35,7 +35,7 @@ for page in root.rglob("*.html"):
     html = page.read_text(encoding="utf-8")
     if 'name="robots" content="noindex,nofollow"' not in html or 'class="preview-flag"' not in html: sys.exit(f"not a noindex preview page: {page}")
     for link in re.findall(r'(?:href|src|action)="(/[^"]*)"', html):
-        if not link.startswith((base + "/", "/poker/", "/malowanie-po-numerach/", "/pobierz/")): sys.exit(f"link escapes {base}: {link} in {page}")
+        if not link.startswith((base + "/", "/poker/", "/mafia/", "/malowanie-po-numerach/", "/pobierz/")): sys.exit(f"link escapes {base}: {link} in {page}")
 protected = pathlib.Path("content/protected.toml")
 if protected.is_file():
     expected = len(tomllib.loads(protected.read_text(encoding="utf-8")).get("entries", []))

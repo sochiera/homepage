@@ -36,7 +36,7 @@ EXPECTED_MICROBLOG_SOURCE = "Mikroblog_2026/mikroblog_2026.md"
 POLISH_MONTHS = ("stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia")
 # Routes owned by other applications (or by the shared download directory) that
 # are always linked at the site root, even from a preview built under a base path.
-ROOT_ONLY_PREFIXES = ("/malowanie-po-numerach/", "/poker/", "/pobierz/")
+ROOT_ONLY_PREFIXES = ("/malowanie-po-numerach/", "/poker/", "/mafia/", "/pobierz/")
 BASE_PATH_RE = re.compile(r"^(/[a-z0-9][a-z0-9-]*)?$")
 STATIC_FILES = ("styles.css", "favicon.svg", "js/privacy.js", "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-wersja.json")
 HOME_DESCRIPTION = "Jan Sochiera — inżynier oprogramowania z Wrocławia. Opowiadania, mikroblog i projekty: generator malowania po numerach, planning poker i aplikacja Mealspire."
@@ -272,7 +272,7 @@ def validate_output(staging: Path, base: str = "") -> None:
             parsed = urlsplit(link)
             if parsed.scheme in {"http", "https"}: continue
             if not link.startswith("/"): fail(f"non-root-relative link: {link}")
-            if link.startswith(ROOT_ONLY_PREFIXES[:2]): continue
+            if link.startswith(ROOT_ONLY_PREFIXES): continue
             if base and not link.startswith(ROOT_ONLY_PREFIXES):
                 if not link.startswith(base + "/"): fail(f"link escapes base path {base}: {link}")
                 link = link[len(base):]

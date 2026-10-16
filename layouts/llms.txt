@@ -22,6 +22,7 @@ Strona jest po polsku. Wszystkie publiczne treści są zwykłym HTML i nie wymag
 
 - [Generator malowania po numerach](https://malowanie.sochiera.pl/): aplikacja webowa, która zamienia zdjęcie w zestaw do malowania po numerach: kolorowy podgląd, szablon do druku z ponumerowanymi polami i legendę palety barw.
 - [Poker]({{ root }}/poker/): planning poker dla zespołu w czasie rzeczywistym; uczestnicy wchodzą przez link i głosują prywatnie, a prowadzący jednym ruchem odsłania wszystkie karty razem ze statystykami.
+- [Mafia]({{ root }}/mafia/): klasyczna gra towarzyska na telefon — tajne role, noc i dzień; każdy dołącza kodem gry, a aplikacja prowadzi fazy i liczy głosy.
 - Mealspire: aplikacja na Androida, która podpowiada, co ugotować, i uczy się kuchni użytkownika. Aktualny plik APK do pobrania jest podlinkowany na stronie głównej.
 
 ## Gdzie indziej

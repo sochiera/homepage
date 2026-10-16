@@ -107,6 +107,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("/mikroblog/", "Mikroblog"),
         ("https://malowanie.sochiera.pl/", "Otwórz generator"),
         ("/poker/", "Otwórz Poker"),
+        ("/mafia/", "Otwórz Mafię"),
         ("/pobierz/mealspire-1.5.apk", "Mealspire — aplikacja na Androida (APK 1.5)"),
         ("https://github.com/sochiera", "GitHub"),
         ("https://www.linkedin.com/in/jan-sochiera-a98bb7a8/", "LinkedIn"),
@@ -329,8 +330,8 @@ def test_home_project_rows_have_expandable_descriptions(writing: Path, tmp_path:
     assert build(writing, out).returncode == 0
     home = (out / "index.html").read_text()
     rows = re.findall(r'<li class="row( project)?">(.*?)</li>', home, re.S)
-    assert len(rows) == 6
-    assert [bool(kind) for kind, _ in rows] == [False] * 3 + [True] * 3
+    assert len(rows) == 7
+    assert [bool(kind) for kind, _ in rows] == [False] * 3 + [True] * 4
     for _, row in rows[3:]:
         # The project heading is the disclosure toggle; the description is in the HTML without any script.
         summary = re.search(r'<details class="project-more"><summary>(.*?)</summary>\s*<p class="row-desc">[^<]{40,}', row, re.S)
@@ -389,7 +390,7 @@ def test_base_path_preview_is_isolated_and_noindex(locked: dict, tmp_path: Path)
         html = page.read_text()
         assert 'name="robots" content="noindex,nofollow"' in html and 'class="preview-flag"' in html
         for link in re.findall(r'(?:href|src|action)="(/[^"]*)"', html):
-            assert link.startswith(("/v2/", "/poker/", "/malowanie-po-numerach/", "/pobierz/")), (page, link)
+            assert link.startswith(("/v2/", "/poker/", "/mafia/", "/malowanie-po-numerach/", "/pobierz/")), (page, link)
     home = (out / "index.html").read_text()
     assert "](https://sochiera.pl/v2/o-mnie/)" in (out / "llms.txt").read_text() and "](https://sochiera.pl/poker/)" in (out / "llms.txt").read_text()
     assert 'href="/v2/o-mnie/"' in home and 'href="/poker/"' in home and 'href="/pobierz/mealspire-1.5.apk" download' in home
