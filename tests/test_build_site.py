@@ -95,7 +95,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
         "opowiadania/kartka/index.html", "mikroblog/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
-        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-wersja.json",
+        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-wersja.json",
         "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "llms.txt",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
@@ -108,7 +108,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("https://malowanie.sochiera.pl/", "Otwórz generator"),
         ("/poker/", "Otwórz Poker"),
         ("/mafia/", "Otwórz Mafię"),
-        ("/pobierz/mealspire-1.5.apk", "Mealspire — aplikacja na Androida (APK 1.5)"),
+        ("/pobierz/mealspire-1.7.apk", "Mealspire — aplikacja na Androida (APK 1.7)"),
         ("https://github.com/sochiera", "GitHub"),
         ("https://www.linkedin.com/in/jan-sochiera-a98bb7a8/", "LinkedIn"),
     ]
@@ -393,7 +393,7 @@ def test_base_path_preview_is_isolated_and_noindex(locked: dict, tmp_path: Path)
             assert link.startswith(("/v2/", "/poker/", "/mafia/", "/malowanie-po-numerach/", "/pobierz/")), (page, link)
     home = (out / "index.html").read_text()
     assert "](https://sochiera.pl/v2/o-mnie/)" in (out / "llms.txt").read_text() and "](https://sochiera.pl/poker/)" in (out / "llms.txt").read_text()
-    assert 'href="/v2/o-mnie/"' in home and 'href="/poker/"' in home and 'href="/pobierz/mealspire-1.5.apk" download' in home
+    assert 'href="/v2/o-mnie/"' in home and 'href="/poker/"' in home and 'href="/pobierz/mealspire-1.7.apk" download' in home
     microblog = (out / "mikroblog/index.html").read_text()
     assert '<script defer src="/v2/js/privacy.js"></script>' in microblog and 'href="/v2/"' in microblog
     assert PROTECTED_MARKING not in microblog and 'section class="locked-entry" data-protected="' in microblog
