@@ -95,6 +95,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
         "opowiadania/kartka/index.html", "mikroblog/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
+        "grupa-tematy/index.html", "grupa-tematy/js/grupa-tematy.js",
         "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-wersja.json",
         "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "llms.txt",
     }
@@ -116,6 +117,14 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     assert '<img class="portrait" src="/img/jan-sochiera.jpg"' in home and 'alt="Jan Sochiera, portret"' in home
     assert 'href="/malowanie-po-numerach/"' not in home
     assert "/biblioteka/" not in home
+    assert "/grupa-tematy/" not in home
+    topics = (out / "grupa-tematy/index.html").read_text()
+    assert 'name="robots" content="noindex,nofollow"' in topics
+    assert 'action="/api/grupa-tematy/proposals"' in topics
+    assert 'src="/grupa-tematy/js/grupa-tematy.js"' in topics
+    assert "Tajny temat testowy" not in topics and "Osoba testowa" not in topics
+    assert "<script" not in (out / "index.html").read_text()
+    assert "<script" not in (out / "mikroblog/index.html").read_text() or 'src="/js/privacy.js"' in (out / "mikroblog/index.html").read_text()
     library = (out / "biblioteka/index.html").read_text()
     assert 'name="robots" content="noindex,nofollow"' in library
     assert 'action="/biblioteka/"' in library and "<script" not in library.lower()
@@ -140,7 +149,8 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
     for rel in expected:
         if rel.endswith(".html"):
             html = (out / rel).read_text()
-            assert 'name="viewport"' in html and (rel == "mikroblog/index.html") == ("<script" in html)
+            assert 'name="viewport"' in html
+            assert (rel in {"mikroblog/index.html", "grupa-tematy/index.html"}) == ("<script" in html)
             assert not re.search(r'<(?:script|img)[^>]+src="https?://', html)
             assert not re.search(r'<link[^>]+rel="(?:stylesheet|icon)"[^>]+href="https?://', html)
 

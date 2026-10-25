@@ -1,0 +1,31 @@
+[Unit]
+Description=Sochiera topic proposal API
+After=network.target
+
+[Service]
+Type=simple
+User=grupa-tematy
+Group=grupa-tematy
+WorkingDirectory=/opt/sochiera/grupa-tematy/current
+ExecStart=/opt/sochiera/grupa-tematy/current/.venv/bin/uvicorn scripts.grupa_tematy_api:app --host 127.0.0.1 --port 8793 --workers 1 --no-access-log
+Restart=on-failure
+RestartSec=3s
+UMask=0077
+StateDirectory=sochiera/grupa-tematy
+StateDirectoryMode=0700
+ReadWritePaths=/var/lib/sochiera/grupa-tematy
+LoadCredentialEncrypted=grupa-tematy:/etc/credstore.encrypted/grupa-tematy
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+Environment=GRUPA_TEMATY_DB_PATH=/var/lib/sochiera/grupa-tematy/data.sqlite3
+
+[Install]
+WantedBy=multi-user.target

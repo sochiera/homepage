@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block page %}page topic-page{% endblock %}
+{% block content %}
+  <header class="topic-hero">
+    <p class="kicker">Wspólna przestrzeń · propozycje spotkań</p>
+    <h1>Grupa tematy</h1>
+    <p class="tagline">Masz temat, który warto wspólnie przemyśleć? Opisz go w dwóch lub trzech zdaniach. Pełna lista i przypisane osoby są dostępne po podaniu wspólnego hasła.</p>
+  </header>
+
+  <section class="topic-panel" aria-labelledby="proposal-heading">
+    <div class="topic-section-heading">
+      <span class="topic-index">01</span>
+      <h2 id="proposal-heading">Zaproponuj temat</h2>
+    </div>
+    <p class="topic-copy">Napisz, o czym warto porozmawiać i co może dać taka rozmowa.</p>
+    <form id="proposal-form" action="{{ base }}/api/grupa-tematy/proposals" data-api-base="{{ base }}/api/grupa-tematy" method="post" novalidate>
+      <label for="topic">Twoja propozycja</label>
+      <textarea id="topic" name="topic" rows="5" maxlength="1200" required placeholder="Na przykład: Jak podejmować decyzje, kiedy mamy niepełne dane? Warto porównać sposoby, które pomagają działać bez udawania pewności."></textarea>
+      <div class="topic-form-footer">
+        <span class="topic-hint">2–3 zdania · maksymalnie 1200 znaków</span>
+        <span id="topic-count" class="topic-count" aria-live="polite">0 / 1200</span>
+      </div>
+      <button type="submit">Wyślij propozycję <span aria-hidden="true">→</span></button>
+      <p id="proposal-status" class="topic-status" role="status" aria-live="polite"></p>
+    </form>
+    <p class="topic-privacy">Treść zapisujemy w zaszyfrowanej bazie. Nie pokazujemy jej publicznie.</p>
+  </section>
+
+  <section class="topic-panel topic-access" aria-labelledby="access-heading">
+    <div class="topic-section-heading">
+      <span class="topic-index">02</span>
+      <h2 id="access-heading">Dostęp do listy</h2>
+    </div>
+    <p class="topic-copy">Jeśli znasz wspólne hasło, możesz przejrzeć zgłoszenia i przypisać je do osoby.</p>
+    <form id="login-form" action="{{ base }}/api/grupa-tematy/session" method="post" novalidate>
+      <label for="group-password">Wspólne hasło</label>
+      <div class="topic-login-row">
+        <input id="group-password" name="password" type="password" autocomplete="off" required>
+        <button type="submit">Pokaż listę</button>
+      </div>
+      <p id="login-status" class="topic-status" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section id="private-area" class="topic-private" aria-labelledby="private-heading" hidden>
+    <div class="topic-private-heading">
+      <div class="topic-section-heading">
+        <span class="topic-index">03</span>
+        <h2 id="private-heading">Zgłoszone tematy</h2>
+      </div>
+      <button id="logout-button" class="topic-quiet-button" type="button">Wyloguj</button>
+    </div>
+    <p class="topic-copy">Przypisanie pomaga przygotować rozmowę. Możesz je w każdej chwili zmienić lub usunąć.</p>
+    <p id="list-status" class="topic-status" role="status" aria-live="polite"></p>
+    <div id="proposal-list" class="topic-list"></div>
+  </section>
+
+  <footer class="topic-footer"><span>Wspólna przestrzeń</span><span>Każdy pomysł może rozpocząć dobrą rozmowę.</span></footer>
+{% endblock %}
+{% block scripts %}<script defer src="{{ base }}/grupa-tematy/js/grupa-tematy.js"></script>{% endblock %}

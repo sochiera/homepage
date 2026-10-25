@@ -199,3 +199,63 @@ form[action] input { flex:1 1 12rem; }
 .preview-flag p { margin:0; }
 .preview-flag { margin:0; padding:.4rem 1rem; background:var(--ink); color:var(--paper); font:500 .6875rem/1.4 var(--mono); letter-spacing:.1em; text-align:center; }
 @media print { .preview-flag,.row-go,.toggle { display:none; } }
+
+/* Topic proposals: this small workspace is intentionally isolated from the public page styles. */
+.topic-page main { max-width:54rem; padding-top:clamp(2.5rem,8vw,6rem); }
+.topic-page .topic-hero { border:0; margin:0 0 clamp(2.75rem,7vw,5rem); padding:0; max-width:46rem; }
+.topic-page .kicker { margin-bottom:1.1rem; }
+.topic-page h1 { max-width:12ch; margin:0 0 1rem; font-size:clamp(3.25rem,12vw,6.75rem); font-weight:400; line-height:.92; letter-spacing:-.055em; }
+.topic-page .tagline { max-width:42rem; font-size:clamp(1.2rem,3.3vw,1.65rem); line-height:1.45; text-wrap:pretty; }
+.topic-page .topic-panel { position:relative; margin:0 0 clamp(2.5rem,7vw,4rem); padding:1.3rem 0 0; border-top:1px solid var(--ink); }
+.topic-section-heading { display:flex; align-items:baseline; gap:.85rem; margin:0 0 .5rem; }
+.topic-section-heading h2 { margin:0; font-size:clamp(1.4rem,4vw,1.9rem); font-weight:500; letter-spacing:-.025em; }
+.topic-index { color:var(--accent); font:500 .75rem/1 var(--mono); font-variant-numeric:tabular-nums; }
+.topic-copy { max-width:38rem; margin:.3rem 0 1.4rem; color:var(--muted); font-size:1.05rem; }
+.topic-page form[action] { display:grid; grid-template-columns:minmax(0,1fr); gap:.55rem; margin:0; }
+.topic-page form[action] label,.assignment-form label { color:var(--muted); font:500 .72rem/1.4 var(--mono); letter-spacing:.12em; text-transform:uppercase; }
+.topic-page textarea { display:block; width:100%; min-height:9.5rem; resize:vertical; padding:.8rem .9rem; border:1px solid var(--control); border-radius:.45rem; background:var(--glow); color:var(--ink); font:400 1.08rem/1.55 var(--serif); }
+.topic-page textarea::placeholder { color:var(--muted); opacity:.8; }
+.topic-page textarea:focus-visible,.topic-page input:focus-visible { border-color:var(--accent); outline-offset:2px; }
+.topic-form-footer { display:flex; flex-wrap:wrap; justify-content:space-between; gap:.2rem .8rem; color:var(--muted); font:400 .72rem/1.5 var(--mono); }
+.topic-count { font-variant-numeric:tabular-nums; }
+.topic-page form[action] > button { justify-self:start; min-height:2.85rem; margin-top:.55rem; padding:.45rem 1.15rem; border-radius:999px; }
+.topic-page form[action] > button span { display:inline-block; padding-left:.35rem; transition:transform .2s; }
+.topic-page form[action] > button:hover span { transform:translateX(.2rem); }
+.topic-privacy { margin:1rem 0 0; color:var(--muted); font-size:.9rem; }
+.topic-login-row { display:flex; gap:.55rem; max-width:31rem; }
+.topic-login-row input { flex:1 1 12rem; }
+.topic-login-row button { flex:0 0 auto; }
+.topic-status { min-height:1.5em; margin:.55rem 0 0; color:var(--muted); font-size:.9rem; }
+.topic-status[data-state="success"] { color:#26704e; }
+.topic-status[data-state="error"] { color:#a3271a; }
+@media (prefers-color-scheme: dark) {
+  .topic-status[data-state="success"] { color:#83d6a9; }
+  .topic-status[data-state="error"] { color:#ff9c8a; }
+}
+.topic-private { margin:0 0 3rem; padding:1.2rem 1.1rem 1.35rem; border:1px solid var(--rule); border-radius:.75rem; background:var(--glow); }
+.topic-private-heading { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:.75rem; }
+.topic-private-heading .topic-section-heading { margin:0; }
+.topic-quiet-button,.topic-remove-button { min-height:2.25rem; padding:.25rem .75rem; border:1px solid var(--control); border-radius:999px; background:transparent; color:var(--ink); font-size:.82rem; }
+.topic-quiet-button:hover,.topic-remove-button:hover { border-color:var(--accent); background:var(--accent); color:var(--paper); }
+.topic-private > .topic-copy { margin:.8rem 0 1rem; }
+.topic-list { display:grid; gap:.8rem; }
+.topic-card { min-width:0; padding:1rem; border:1px solid var(--rule); border-radius:.55rem; background:var(--paper); }
+.topic-card h3 { margin:0 0 .65rem; color:var(--muted); font:500 .72rem/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+.topic-card-text { margin:0; overflow-wrap:anywhere; font-size:1.08rem; line-height:1.55; white-space:pre-wrap; }
+.topic-card-assignment { display:grid; gap:.6rem; margin-top:1rem; padding-top:.8rem; border-top:1px solid var(--rule); }
+.topic-assignee { margin:0; color:var(--accent); font-size:.95rem; font-weight:600; overflow-wrap:anywhere; }
+.assignment-form { display:grid; grid-template-columns:minmax(0,1fr); gap:.4rem; }
+.assignment-form input { width:100%; }
+.topic-assignment-controls { display:flex; flex-wrap:wrap; gap:.5rem; }
+.topic-assignment-controls button { min-height:2.3rem; font-size:.85rem; }
+.topic-assignment-controls .topic-remove-button { background:transparent; color:var(--ink); }
+.topic-empty { margin:0; padding:.9rem 0; color:var(--muted); font-style:italic; }
+.topic-page .topic-footer { display:flex; flex-wrap:wrap; justify-content:space-between; gap:.35rem 1rem; margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule); font-size:.72rem; }
+@media (max-width:30rem) {
+  .topic-page main { padding-top:2.5rem; }
+  .topic-page h1 { font-size:clamp(3rem,15vw,4rem); }
+  .topic-login-row { display:grid; grid-template-columns:minmax(0,1fr); }
+  .topic-login-row button { justify-self:start; }
+  .topic-private { padding:.9rem .75rem 1rem; }
+  .topic-card { padding:.8rem; }
+}

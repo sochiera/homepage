@@ -207,6 +207,7 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     write("index.html", "home.html", lang="pl", title="Jan Sochiera — strona główna", og_title="Jan Sochiera — strona główna", description=HOME_DESCRIPTION, canonical=BASE_URL + "/")
     write(output_path("/o-mnie/"), "about.html", lang="pl", title="O mnie — Jan Sochiera", og_title="O mnie — Jan Sochiera", description="Jan Sochiera — inżynier oprogramowania, doświadczenie zawodowe i kariera.", canonical=BASE_URL + "/o-mnie/")
     write(output_path("/biblioteka/"), "library.html", lang="pl", title="Biblioteka — Jan Sochiera", og_title="Biblioteka — Jan Sochiera", description="Ukryta wyszukiwarka książek.", canonical=BASE_URL + "/biblioteka/", robots="noindex,nofollow")
+    write(output_path("/grupa-tematy/"), "grupa-tematy.html", lang="pl", title="Grupa tematy — propozycje spotkań", og_title="Grupa tematy", description="Zaproponuj temat do rozmowy podczas spotkania.", canonical=BASE_URL + "/grupa-tematy/", robots="noindex,nofollow")
     protected_headings = {entry["heading"] for entry in protected["entries"]}
     entries = []
     source_entries = split_microblog(microblog["path"].read_text(encoding="utf-8"))
@@ -243,6 +244,9 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     for rel in STATIC_FILES:
         (staging / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / "static" / rel, staging / rel)
+    page_script = staging / "grupa-tematy/js/grupa-tematy.js"
+    page_script.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / "static/js/grupa-tematy.js", page_script)
     validate_output(staging, base)
     artifacts = [{"path": p.relative_to(staging).as_posix(), "sha256": sha(p)} for p in sorted(staging.rglob("*")) if p.is_file()]
     sources = [{"path": s["source"], "sha256": sha(s["path"])} for s in sorted([*stories, microblog], key=lambda x: x["source"])]
@@ -250,7 +254,7 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     (staging / "build-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def validate_output(staging: Path, base: str = "") -> None:
-    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "llms.txt", *STATIC_FILES}
+    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "grupa-tematy/index.html", "grupa-tematy/js/grupa-tematy.js", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "llms.txt", *STATIC_FILES}
     actual = {p.relative_to(staging).as_posix() for p in staging.rglob("*") if p.is_file()}
     if actual != expected or any(p.is_symlink() for p in staging.rglob("*")): fail("unexpected publish tree")
     for page in staging.rglob("*.html"):
@@ -266,6 +270,10 @@ def validate_output(staging: Path, base: str = "") -> None:
                     fail("unsafe protected payload")
                 for key in ("s", "n", "c"):
                     base64.b64decode(payload[key], validate=True)
+        elif rel == "grupa-tematy/index.html":
+            expected_script = f'<script defer src="{base}/grupa-tematy/js/grupa-tematy.js"></script>'
+            if not has_script or text.count(expected_script) != 1 or text.count("<script") != 1:
+                fail("grupa-tematy page must load exactly its route-scoped script")
         elif has_script:
             fail("scripts are forbidden")
         for link in re.findall(r'(?:href|src)="([^"]+)"', text):
