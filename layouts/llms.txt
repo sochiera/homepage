@@ -24,6 +24,7 @@ Strona jest po polsku. Wszystkie publiczne treści są zwykłym HTML i nie wymag
 - [Poker]({{ root }}/poker/): planning poker dla zespołu w czasie rzeczywistym; uczestnicy wchodzą przez link i głosują prywatnie, a prowadzący jednym ruchem odsłania wszystkie karty razem ze statystykami.
 - [Mafia]({{ root }}/mafia/): klasyczna gra towarzyska na telefon — tajne role, noc i dzień; każdy dołącza kodem gry, a aplikacja prowadzi fazy i liczy głosy.
 - Mealspire: aplikacja na Androida, która podpowiada, co ugotować, i uczy się kuchni użytkownika. Aktualny plik APK do pobrania jest podlinkowany na stronie głównej.
+- [Parlo](https://github.com/sochiera/italiano#readme): aplikacja na Androida do nauki włoskiego całymi zdaniami — odpowiedzi głosem, porównanie ze wzorcem słowo w słowo i powtórki FSRS. Instalka na Androida jest podlinkowana na stronie głównej.
 
 ## Gdzie indziej
 

@@ -109,6 +109,8 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("/poker/", "Otwórz Poker"),
         ("/mafia/", "Otwórz Mafię"),
         ("/pobierz/mealspire-1.7.apk", "Mealspire — aplikacja na Androida (APK 1.7)"),
+        ("https://github.com/sochiera/italiano#readme", "Opis projektu Parlo"),
+        ("https://github.com/sochiera/italiano/releases/latest/download/parlo.apk", "Parlo — aplikacja na Androida (APK)"),
         ("https://github.com/sochiera", "GitHub"),
         ("https://www.linkedin.com/in/jan-sochiera-a98bb7a8/", "LinkedIn"),
     ]
@@ -330,8 +332,8 @@ def test_home_project_rows_have_expandable_descriptions(writing: Path, tmp_path:
     assert build(writing, out).returncode == 0
     home = (out / "index.html").read_text()
     rows = re.findall(r'<li class="row( project)?">(.*?)</li>', home, re.S)
-    assert len(rows) == 7
-    assert [bool(kind) for kind, _ in rows] == [False] * 3 + [True] * 4
+    assert len(rows) == 8
+    assert [bool(kind) for kind, _ in rows] == [False] * 3 + [True] * 5
     for _, row in rows[3:]:
         # The project heading is the disclosure toggle; the description is in the HTML without any script.
         summary = re.search(r'<details class="project-more"><summary>(.*?)</summary>\s*<p class="row-desc">[^<]{40,}', row, re.S)
@@ -362,7 +364,8 @@ def test_llms_txt_lists_only_public_pages(locked: dict, tmp_path: Path):
     assert llms.startswith("# Jan Sochiera\n\n> ") and "rozwijania swoich projektów" in llms
     assert "orkiestrator" not in llms and "pisze opowiadania" not in llms
     for url in ("https://sochiera.pl/o-mnie/", "https://sochiera.pl/opowiadania/kartka/",
-                "https://sochiera.pl/mikroblog/", "https://malowanie.sochiera.pl/", "https://sochiera.pl/poker/"):
+                "https://sochiera.pl/mikroblog/", "https://malowanie.sochiera.pl/", "https://sochiera.pl/poker/",
+                "https://github.com/sochiera/italiano#readme"):
         assert f"]({url})" in llms
     assert "biblioteka" not in llms and ".apk" not in llms and "&amp;" not in llms
     assert PROTECTED_MARKING not in llms
