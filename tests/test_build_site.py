@@ -95,7 +95,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
         "opowiadania/kartka/index.html", "mikroblog/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
-        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-wersja.json",
+        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-wersja.json", "pobierz/parlo-0.2.0.5.apk",
         "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "llms.txt",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
@@ -110,7 +110,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("/mafia/", "Otwórz Mafię"),
         ("/pobierz/mealspire-1.7.apk", "Mealspire — aplikacja na Androida (APK 1.7)"),
         ("https://github.com/sochiera/italiano#readme", "Opis projektu Parlo"),
-        ("https://github.com/sochiera/italiano/releases/latest/download/parlo.apk", "Parlo — aplikacja na Androida (APK)"),
+        ("/pobierz/parlo-0.2.0.5.apk", "Parlo — aplikacja na Androida (APK 0.2.0.5)"),
         ("https://github.com/sochiera", "GitHub"),
         ("https://www.linkedin.com/in/jan-sochiera-a98bb7a8/", "LinkedIn"),
     ]
