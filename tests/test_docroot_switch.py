@@ -11,6 +11,17 @@ guard = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(guard)
 
 
+HOME_LINKS = ('<a href="/pobierz/mealspire-1.5.apk" download>Mealspire — aplikacja na Androida (APK 1.5)</a>'
+              '<a href="/pobierz/parlo-%s.apk" download>Parlo — aplikacja na Androida (APK %s)</a>')
+
+
+def resign(root):
+    data = json.loads((root / "build-manifest.json").read_text())
+    data["artifacts"] = [{"path": p.relative_to(root).as_posix(), "sha256": guard.digest(p)}
+                         for p in sorted(root.rglob("*")) if p.is_file() and p.name != "build-manifest.json"]
+    (root / "build-manifest.json").write_text(json.dumps(data))
+
+
 def manifest(root, files):
     root.mkdir()
     entries = []
@@ -27,6 +38,9 @@ def trees(tmp_path):
     current, staged, backup = (tmp_path / name for name in ("current", "staged", "backup"))
     downloads = {"pobierz/mealspire-1.5.apk": b"apk", "pobierz/mealspire-1.2.apk": b"older apk"}
     downloads["pobierz/mealspire-wersja.json"] = json.dumps({"versionName": "1.5", "sha256": hashlib.sha256(b"apk").hexdigest()}).encode()
+    parlo = {"versionName": "0.2.0.7", "size": len(b"parlo apk"), "sha256": hashlib.sha256(b"parlo apk").hexdigest()}
+    downloads |= {"pobierz/parlo-0.2.0.6.apk": b"older parlo", "pobierz/parlo-0.2.0.7.apk": b"parlo apk",
+                  "pobierz/parlo-wersja.json": json.dumps(parlo).encode()}
     manifest(current, downloads | {"index.html": b"old", "de/opowiadania/index.html": b"retired translation"})
     # Downloads may have been added after the previous homepage manifest.
     previous = json.loads((current / "build-manifest.json").read_text())
@@ -34,7 +48,7 @@ def trees(tmp_path):
     (current / "build-manifest.json").write_text(json.dumps(previous))
     (current / "v2").mkdir()
     (current / "v2/index.html").write_text("preview")
-    manifest(staged, downloads | {"index.html": '<a href="/pobierz/mealspire-1.5.apk" download>Mealspire — aplikacja na Androida (APK 1.5)</a>'.encode()})
+    manifest(staged, downloads | {"index.html": (HOME_LINKS % ("0.2.0.7", "0.2.0.7")).encode()})
     return current, staged, backup
 
 
@@ -68,6 +82,28 @@ def test_refuses_drift_before_touching_docroot(trees, drift):
                     item["sha256"] = guard.digest(staged / "index.html")
             (staged / "build-manifest.json").write_text(json.dumps(data))
     with pytest.raises(ValueError):
+        guard.switch(*trees)
+    assert (current / "index.html").read_text() == "old"
+    assert staged.is_dir() and not backup.exists()
+
+
+@pytest.mark.parametrize("drift", ["parlo_missing_apk", "parlo_wrong_version_link", "parlo_hash_mismatch", "parlo_two_links"])
+def test_refuses_parlo_link_or_artifact_drift(trees, drift):
+    current, staged, backup = trees
+    home = staged / "index.html"
+    if drift == "parlo_missing_apk":
+        (staged / "pobierz/parlo-0.2.0.7.apk").unlink()
+    elif drift == "parlo_wrong_version_link":
+        home.write_text(HOME_LINKS % ("0.2.0.6", "0.2.0.6"))
+    elif drift == "parlo_hash_mismatch":
+        (staged / "pobierz/parlo-0.2.0.7.apk").write_bytes(b"tampered")
+    else:
+        home.write_text(HOME_LINKS % ("0.2.0.7", "0.2.0.7") + '<a href="/pobierz/parlo-0.2.0.6.apk">x</a>')
+    resign(staged)  # the manifest agrees with the files, so only the Parlo guard can refuse
+    # Current docroot must not count as drift for removed/changed staged files.
+    if drift in {"parlo_missing_apk", "parlo_hash_mismatch"}:
+        (current / "pobierz/parlo-0.2.0.7.apk").unlink()
+    with pytest.raises(ValueError, match="Parlo"):
         guard.switch(*trees)
     assert (current / "index.html").read_text() == "old"
     assert staged.is_dir() and not backup.exists()

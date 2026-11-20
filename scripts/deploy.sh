@@ -138,6 +138,16 @@ PY
   ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "test -d '$DOCROOT' && sudo -n nginx -T 2>&1 | grep -q '/api/pbn-'"
 }
 
+# The linked Parlo APK must be the latest stable GitHub release before we ship,
+# and exactly that file must be served behind the homepage link afterwards.
+check_parlo_official() {
+  .venv/bin/python3 scripts/verify_parlo_release.py official || die "Parlo metadata lags or disagrees with the official release; refresh static/pobierz first"
+}
+
+verify_parlo_live() {
+  .venv/bin/python3 scripts/verify_parlo_release.py live https://sochiera.pl https://www.sochiera.pl
+}
+
 restore_backup() {
   ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "set -eu; sudo -n flock '$RELEASE_DIR/.lock' sh -c 'test -d "$RELEASE_DIR/backup-$RELEASE_ID"; mv "$DOCROOT" "$RELEASE_DIR/failed-$RELEASE_ID"; mv "$RELEASE_DIR/backup-$RELEASE_ID" "$DOCROOT"'"
 }
@@ -162,9 +172,10 @@ check_clean_manifest
 check_dns
 check_remote_config
 if [[ -n "$ROLLBACK" ]]; then manual_rollback; exit 0; fi
+check_parlo_official
 package_release
 upload_release
 backup_current
 switch_release
-if ! verify_release; then restore_backup; verify_restored_backup || die "automatic rollback verification failed"; die "release verification failed; previous site restored"; fi
+if ! verify_release || ! verify_parlo_live; then restore_backup; verify_restored_backup || die "automatic rollback verification failed"; die "release verification failed; previous site restored"; fi
 echo "Deployed $RELEASE_ID"

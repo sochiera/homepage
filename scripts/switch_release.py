@@ -57,6 +57,24 @@ def check_trees(current, staged):
     anchor = f'<a href="/{apk}" download>Mealspire — aplikacja na Androida (APK {version})</a>'
     if (staged / "index.html").read_text().count(anchor) != 1:
         raise ValueError("homepage APK link disagrees with version metadata")
+    check_parlo(staged, incoming)
+
+
+def check_parlo(staged, incoming):
+    """The linked Parlo APK must be exactly the one named by parlo-wersja.json."""
+    metadata = json.loads((staged / "pobierz/parlo-wersja.json").read_text())
+    version = metadata["versionName"]
+    if not re.fullmatch(r"[0-9]+(\.[0-9]+){1,3}", version):
+        raise ValueError("unexpected Parlo APK version")
+    apk = f"pobierz/parlo-{version}.apk"
+    if apk not in incoming:
+        raise ValueError("Parlo APK named by version metadata is missing")
+    if incoming[apk] != metadata["sha256"] or (staged / apk).stat().st_size != metadata["size"]:
+        raise ValueError("Parlo APK checksum disagrees with version metadata")
+    home = (staged / "index.html").read_text()
+    anchor = f'<a href="/{apk}" download>Parlo — aplikacja na Androida (APK {version})</a>'
+    if home.count(anchor) != 1 or len(re.findall(r'href="/pobierz/parlo-', home)) != 1:
+        raise ValueError("homepage Parlo link disagrees with version metadata")
 
 
 def switch(current, staged, backup):

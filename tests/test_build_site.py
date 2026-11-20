@@ -14,6 +14,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILDER = ROOT / "scripts/build_site.py"
+PARLO = json.loads((ROOT / "static/pobierz/parlo-wersja.json").read_text())
 
 
 def manuscript(title: str, chaptered: bool = False) -> str:
@@ -95,7 +96,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
         "opowiadania/kartka/index.html", "mikroblog/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
-        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-1.8.apk", "pobierz/mealspire-wersja.json", "pobierz/parlo-0.2.0.5.apk", "pobierz/parlo-0.2.0.6.apk",
+        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-1.8.apk", "pobierz/mealspire-wersja.json", "pobierz/parlo-0.2.0.5.apk", "pobierz/parlo-0.2.0.6.apk", "pobierz/parlo-0.2.0.7.apk", "pobierz/parlo-wersja.json",
         "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "llms.txt",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
@@ -110,7 +111,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         ("/mafia/", "Otwórz Mafię"),
         ("/pobierz/mealspire-1.8.apk", "Mealspire — aplikacja na Androida (APK 1.8)"),
         ("https://github.com/sochiera/italiano#readme", "Opis projektu Parlo"),
-        ("/pobierz/parlo-0.2.0.6.apk", "Parlo — aplikacja na Androida (APK 0.2.0.6)"),
+        (f"/pobierz/parlo-{PARLO['versionName']}.apk", f"Parlo — aplikacja na Androida (APK {PARLO['versionName']})"),
         ("https://github.com/sochiera", "GitHub"),
         ("https://www.linkedin.com/in/jan-sochiera-a98bb7a8/", "LinkedIn"),
     ]
@@ -407,3 +408,55 @@ def test_base_path_is_constrained(writing: Path, tmp_path: Path, base: str):
     result = subprocess.run([sys.executable, str(BUILDER), "--writing-root", str(writing), "--output", str(tmp_path / "site"), "--base-path", base],
                             cwd=ROOT, text=True, capture_output=True)
     assert result.returncode != 0 and "base path" in result.stderr
+
+
+def load_builder():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("build_site", BUILDER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_parlo_link_comes_from_metadata_naming_the_official_apk():
+    assert PARLO["releaseTag"] == f"android-native-v{PARLO['versionName']}"
+    apk = ROOT / f"static/pobierz/parlo-{PARLO['versionName']}.apk"
+    assert apk.stat().st_size == PARLO["size"]
+    assert hashlib.sha256(apk.read_bytes()).hexdigest() == PARLO["sha256"]
+    # Previously published APKs stay downloadable.
+    for old in ("0.2.0.5", "0.2.0.6"):
+        assert (ROOT / f"static/pobierz/parlo-{old}.apk").is_file()
+    assert "parlo-0." not in (ROOT / "layouts/home.html").read_text()
+
+
+@pytest.mark.parametrize("drift, reason", [
+    ("missing_apk", "not published"),
+    ("wrong_version", "not published"),
+    ("bad_hash", "checksum"),
+    ("bad_size", "checksum"),
+    ("tag_mismatch", "release tag"),
+])
+def test_build_refuses_parlo_metadata_drift(tmp_path: Path, drift: str, reason: str):
+    builder = load_builder()
+    static = tmp_path / "static"
+    (static / "pobierz").mkdir(parents=True)
+    metadata = dict(PARLO)
+    apk = f"pobierz/parlo-{metadata['versionName']}.apk"
+    shutil.copy2(ROOT / "static" / apk, static / apk)
+    if drift == "missing_apk":
+        (static / apk).unlink()
+    elif drift == "wrong_version":
+        metadata |= {"versionName": "9.9.9.9", "releaseTag": "android-native-v9.9.9.9"}
+    elif drift == "bad_hash":
+        metadata["sha256"] = "0" * 64
+    elif drift == "bad_size":
+        metadata["size"] += 1
+    else:
+        metadata["releaseTag"] = "android-native-v0.2.0.6"
+    (static / "pobierz/parlo-wersja.json").write_text(json.dumps(metadata))
+    with pytest.raises(ValueError, match=reason):
+        builder.load_parlo(static)
+    metadata_ok = dict(PARLO)
+    (static / "pobierz/parlo-wersja.json").write_text(json.dumps(metadata_ok))
+    if drift != "missing_apk":
+        assert builder.load_parlo(static)["href"] == "/" + apk
