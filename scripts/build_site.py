@@ -38,7 +38,12 @@ POLISH_MONTHS = ("stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "
 # are always linked at the site root, even from a preview built under a base path.
 ROOT_ONLY_PREFIXES = ("/malowanie-po-numerach/", "/poker/", "/mafia/", "/pobierz/")
 BASE_PATH_RE = re.compile(r"^(/[a-z0-9][a-z0-9-]*)?$")
-STATIC_FILES = ("styles.css", "favicon.svg", "js/privacy.js", "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-1.8.apk", "pobierz/mealspire-wersja.json", "pobierz/parlo-0.2.0.5.apk", "pobierz/parlo-0.2.0.6.apk")
+STATIC_FILES = ("styles.css", "favicon.svg", "js/privacy.js", "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-1.8.apk", "pobierz/mealspire-wersja.json", "pobierz/parlo-0.2.0.5.apk", "pobierz/parlo-0.2.0.6.apk", "pobierz/parlo-0.2.0.7.apk", "pobierz/parlo-wersja.json")
+# Single source for the linked Parlo APK: the homepage anchor, the published file and
+# the deploy/acceptance checks all read static/pobierz/parlo-wersja.json.
+PARLO_METADATA = "pobierz/parlo-wersja.json"
+PARLO_VERSION_RE = re.compile(r"^[0-9]+(\.[0-9]+){1,3}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 HOME_DESCRIPTION = "Jan Sochiera — inżynier oprogramowania z Wrocławia. Opowiadania, mikroblog i projekty: generator malowania po numerach, planning poker i aplikacja Mealspire."
 ALLOWED_HTML = [
     re.compile(r'^<h3 align="center">([IVX]+)</h3>$'),
@@ -56,6 +61,21 @@ def output_path(url: str) -> str:
     if not url.startswith("/") or not url.endswith("/") or ".." in url:
         fail(f"unsafe output URL: {url}")
     return (url.strip("/") + "/index.html") if url != "/" else "index.html"
+
+def load_parlo(static_root: Path) -> dict:
+    metadata = json.loads((static_root / PARLO_METADATA).read_text(encoding="utf-8"))
+    version, digest = metadata.get("versionName", ""), metadata.get("sha256", "")
+    if not PARLO_VERSION_RE.fullmatch(version) or not SHA256_RE.fullmatch(digest):
+        fail("unexpected Parlo version metadata")
+    if metadata.get("releaseTag") != f"android-native-v{version}":
+        fail("Parlo release tag disagrees with versionName")
+    rel = f"pobierz/parlo-{version}.apk"
+    apk = static_root / rel
+    if rel not in STATIC_FILES or not apk.is_file():
+        fail(f"Parlo APK named by metadata is not published: {rel}")
+    if apk.stat().st_size != metadata.get("size") or sha(apk) != digest:
+        fail("Parlo APK checksum or size disagrees with version metadata")
+    return {"version": version, "href": "/" + rel}
 
 def resolve_source(writing_root: Path, relative_source: str) -> Path:
     source = writing_root / relative_source
@@ -204,7 +224,8 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
         values = common | context
         if base: values["robots"] = "noindex,nofollow"
         target.write_text(env.get_template(template).render(**values), encoding="utf-8")
-    write("index.html", "home.html", lang="pl", title="Jan Sochiera — strona główna", og_title="Jan Sochiera — strona główna", description=HOME_DESCRIPTION, canonical=BASE_URL + "/")
+    parlo = load_parlo(ROOT / "static")
+    write("index.html", "home.html", parlo=parlo, lang="pl", title="Jan Sochiera — strona główna", og_title="Jan Sochiera — strona główna", description=HOME_DESCRIPTION, canonical=BASE_URL + "/")
     write(output_path("/o-mnie/"), "about.html", lang="pl", title="O mnie — Jan Sochiera", og_title="O mnie — Jan Sochiera", description="Jan Sochiera — inżynier oprogramowania, doświadczenie zawodowe i kariera.", canonical=BASE_URL + "/o-mnie/")
     write(output_path("/biblioteka/"), "library.html", lang="pl", title="Biblioteka — Jan Sochiera", og_title="Biblioteka — Jan Sochiera", description="Ukryta wyszukiwarka książek.", canonical=BASE_URL + "/biblioteka/", robots="noindex,nofollow")
     protected_headings = {entry["heading"] for entry in protected["entries"]}
