@@ -3,7 +3,8 @@
 
   official            metadata == latest stable GitHub release (tag, asset size, SHA-256)
   live BASE_URL...    fresh read of BASE_URL/: exactly one Parlo link, matching the metadata,
-                      its APK answers HTTP 200 and hashes to the metadata SHA-256
+                      its APK and the stable /pobierz/parlo.apk both answer HTTP 200
+                      and hash to the metadata SHA-256
                       (add --official to also compare with the GitHub release)
 
 Exit 0 only when everything agrees; a Parlo release counts as deployed only after `live` passes.
@@ -24,6 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 METADATA = ROOT / "static/pobierz/parlo-wersja.json"
 RELEASE_API = "https://api.github.com/repos/sochiera/italiano/releases/latest"
+STABLE_ALIAS = "/pobierz/parlo.apk"
 LINK_RE = re.compile(r'<a href="(/pobierz/parlo-[^"]+)" download>Parlo — aplikacja na Androida \(APK ([^)]+)\)</a>')
 
 
@@ -91,13 +93,16 @@ def check_live(base_url, metadata, fetch=fetch):
     expected = f"/pobierz/parlo-{metadata['versionName']}.apk"
     if href != expected or version != metadata["versionName"]:
         raise Mismatch(f"{base_url}/ links {href} (APK {version}), metadata names {expected}")
-    status, apk = fetch(base_url + href, {"Cache-Control": "no-cache"})
-    if status != 200:
-        raise Mismatch(f"{base_url}{href}: HTTP {status}")
-    digest = hashlib.sha256(apk).hexdigest()
-    if digest != metadata["sha256"] or len(apk) != metadata["size"]:
-        raise Mismatch(f"{base_url}{href}: sha256={digest} size={len(apk)} differs from metadata")
-    return f"live {base_url}{href} HTTP 200 sha256={digest}"
+    results = []
+    for path in (href, STABLE_ALIAS):
+        status, apk = fetch(base_url + path, {"Cache-Control": "no-cache"})
+        if status != 200:
+            raise Mismatch(f"{base_url}{path}: HTTP {status}")
+        digest = hashlib.sha256(apk).hexdigest()
+        if digest != metadata["sha256"] or len(apk) != metadata["size"]:
+            raise Mismatch(f"{base_url}{path}: sha256={digest} size={len(apk)} differs from metadata")
+        results.append(f"live {base_url}{path} HTTP 200 sha256={digest}")
+    return "\n".join(results)
 
 
 def main(argv=None):

@@ -7,16 +7,23 @@ readonly DOCROOT="/var/www/sochiera"
 readonly RELEASE_DIR="/var/www/sochiera-releases"
 readonly RELEASE_RE='^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$'
 readonly BUILD_DIR=".build/site"
-HOST=""; YES=0; ROLLBACK=""
+# One-time migration of a live download the repository does not own yet: the exact
+# file (PATH=SHA256, inspected beforehand) is copied to $RELEASE_DIR/retired-<id>/
+# and kept in backup-<id>, then the release replaces it. Nothing is deleted.
+readonly RETIRE_RE='^pobierz/[A-Za-z0-9][A-Za-z0-9._-]*=[0-9a-f]{64}$'
+HOST=""; YES=0; ROLLBACK=""; RETIRE_ARGS=""
 
 die() { echo "deploy: $*" >&2; exit 1; }
-usage() { echo "usage: scripts/deploy.sh --host ubuntu@51.83.199.206 [--yes] [--rollback RELEASE_ID]"; }
+usage() { echo "usage: scripts/deploy.sh --host ubuntu@51.83.199.206 [--yes] [--rollback RELEASE_ID] [--retire-download pobierz/NAME=SHA256]..."; }
 
 while (($#)); do
   case "$1" in
     --host) (($# >= 2)) || die "--host needs a value"; HOST=$2; shift 2 ;;
     --yes) YES=1; shift ;;
     --rollback) (($# >= 2)) || die "--rollback needs a value"; ROLLBACK=$2; shift 2 ;;
+    --retire-download) (($# >= 2)) || die "--retire-download needs a value"
+      [[ "$2" =~ $RETIRE_RE ]] || die "invalid --retire-download value; expected pobierz/NAME=SHA256"
+      RETIRE_ARGS+=" --retire $2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -27,6 +34,7 @@ if (( ! YES )); then
   [[ "$answer" == deploy ]] || die "confirmation refused"
 fi
 if [[ -n "$ROLLBACK" && ! "$ROLLBACK" =~ $RELEASE_RE ]]; then die "invalid rollback release identifier"; fi
+if [[ -n "$ROLLBACK" && -n "$RETIRE_ARGS" ]]; then die "--retire-download cannot be combined with --rollback"; fi
 
 manifest_hash() { sha256sum "$BUILD_DIR/build-manifest.json" | awk '{print $1}'; }
 
@@ -85,7 +93,7 @@ backup_current() {
 
 switch_release() {
   local previous_hashes
-  previous_hashes="$(ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "sudo -n flock '$RELEASE_DIR/.lock' python3 - '$DOCROOT' '$RELEASE_DIR/.stage-$RELEASE_ID' '$RELEASE_DIR/backup-$RELEASE_ID'" < scripts/switch_release.py)" || return 1
+  previous_hashes="$(ssh -i "$IDENTITY_FILE" -o IdentitiesOnly=yes "$EXPECTED_HOST" "sudo -n flock '$RELEASE_DIR/.lock' python3 - '$DOCROOT' '$RELEASE_DIR/.stage-$RELEASE_ID' '$RELEASE_DIR/backup-$RELEASE_ID'$RETIRE_ARGS" < scripts/switch_release.py)" || return 1
   read -r PREVIOUS_TREE_HASH PREVIOUS_HOME_HASH <<< "$previous_hashes"
 }
 
@@ -179,3 +187,4 @@ backup_current
 switch_release
 if ! verify_release || ! verify_parlo_live; then restore_backup; verify_restored_backup || die "automatic rollback verification failed"; die "release verification failed; previous site restored"; fi
 echo "Deployed $RELEASE_ID"
+if [[ -n "$RETIRE_ARGS" ]]; then echo "Retired downloads preserved in $RELEASE_DIR/retired-$RELEASE_ID (and backup-$RELEASE_ID)"; fi

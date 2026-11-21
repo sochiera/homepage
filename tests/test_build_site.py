@@ -96,7 +96,7 @@ def test_build_outputs_exact_routes_and_metadata(writing: Path, tmp_path: Path):
         "index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html",
         "opowiadania/kartka/index.html", "mikroblog/index.html", "styles.css", "favicon.svg",
         "o-mnie/index.html", "biblioteka/index.html",
-        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-1.8.apk", "pobierz/mealspire-wersja.json", "pobierz/parlo-0.2.0.5.apk", "pobierz/parlo-0.2.0.6.apk", "pobierz/parlo-0.2.0.7.apk", "pobierz/parlo-wersja.json",
+        "build-manifest.json", "js/privacy.js", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-1.8.apk", "pobierz/mealspire-wersja.json", "pobierz/parlo-0.2.0.5.apk", "pobierz/parlo-0.2.0.6.apk", "pobierz/parlo-0.2.0.7.apk", "pobierz/parlo-wersja.json", "pobierz/parlo.apk",
         "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "llms.txt",
     }
     assert {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()} == expected
@@ -460,3 +460,19 @@ def test_build_refuses_parlo_metadata_drift(tmp_path: Path, drift: str, reason: 
     (static / "pobierz/parlo-wersja.json").write_text(json.dumps(metadata_ok))
     if drift != "missing_apk":
         assert builder.load_parlo(static)["href"] == "/" + apk
+
+
+def test_stable_parlo_alias_is_the_same_verified_release_asset(writing: Path, tmp_path: Path):
+    out = tmp_path / "site"
+    result = build(writing, out)
+    assert result.returncode == 0, result.stderr
+    versioned = out / f"pobierz/parlo-{PARLO['versionName']}.apk"
+    alias = out / "pobierz/parlo.apk"
+    assert alias.read_bytes() == versioned.read_bytes()
+    assert hashlib.sha256(alias.read_bytes()).hexdigest() == PARLO["sha256"]
+    assert not alias.is_symlink()
+    entries = {e["path"]: e["sha256"] for e in json.loads((out / "build-manifest.json").read_text())["artifacts"]}
+    assert entries["pobierz/parlo.apk"] == entries[f"pobierz/parlo-{PARLO['versionName']}.apk"] == PARLO["sha256"]
+    # The alias is generated, never a second source file in the repository.
+    assert not (ROOT / "static/pobierz/parlo.apk").exists()
+    assert '"pobierz/parlo.apk"' not in BUILDER.read_text().split("STATIC_FILES = ", 1)[1].split("\n", 1)[0]
