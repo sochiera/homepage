@@ -68,7 +68,8 @@ def test_live_build_served_over_http_is_consistent(site):
     out, url = site
     result = subprocess.run([sys.executable, str(SCRIPT), "live", url], text=True, capture_output=True)
     assert result.returncode == 0, result.stderr
-    assert f"HTTP 200 sha256={METADATA['sha256']}" in result.stdout
+    assert f"/pobierz/parlo-{METADATA['versionName']}.apk HTTP 200 sha256={METADATA['sha256']}" in result.stdout
+    assert f"/pobierz/parlo.apk HTTP 200 sha256={METADATA['sha256']}" in result.stdout
 
 
 @pytest.mark.parametrize("drift, reason", [
@@ -76,6 +77,8 @@ def test_live_build_served_over_http_is_consistent(site):
     ("wrong_version", "metadata names"),
     ("bad_hash", "differs from metadata"),
     ("no_link", "found 0"),
+    ("missing_alias", "parlo.apk: HTTP 404"),
+    ("stale_alias", "parlo.apk: sha256="),
 ])
 def test_live_drift_blocks_deployed(site, drift, reason):
     out, url = site
@@ -88,6 +91,10 @@ def test_live_drift_blocks_deployed(site, drift, reason):
     elif drift == "bad_hash":
         data = apk.read_bytes()
         apk.write_bytes(data[:-1] + bytes([data[-1] ^ 0xFF]))
+    elif drift == "missing_alias":
+        (out / "pobierz/parlo.apk").unlink()
+    elif drift == "stale_alias":
+        (out / "pobierz/parlo.apk").write_bytes((out / "pobierz/parlo-0.2.0.6.apk").read_bytes())
     else:
         home.write_text(home.read_text().replace("Parlo — aplikacja", "Parlo – aplikacja"))
     result = subprocess.run([sys.executable, str(SCRIPT), "live", url], text=True, capture_output=True)

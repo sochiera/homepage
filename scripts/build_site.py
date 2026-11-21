@@ -42,6 +42,10 @@ STATIC_FILES = ("styles.css", "favicon.svg", "js/privacy.js", "img/jan-sochiera.
 # Single source for the linked Parlo APK: the homepage anchor, the published file and
 # the deploy/acceptance checks all read static/pobierz/parlo-wersja.json.
 PARLO_METADATA = "pobierz/parlo-wersja.json"
+# Stable public address of the latest official Parlo APK. It is not a separate
+# source file: the build writes a byte copy of the versioned APK named by the
+# metadata, so both addresses always serve the same verified release asset.
+PARLO_ALIAS = "pobierz/parlo.apk"
 PARLO_VERSION_RE = re.compile(r"^[0-9]+(\.[0-9]+){1,3}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 HOME_DESCRIPTION = "Jan Sochiera — inżynier oprogramowania z Wrocławia. Opowiadania, mikroblog i projekty: generator malowania po numerach, planning poker i aplikacja Mealspire."
@@ -75,7 +79,7 @@ def load_parlo(static_root: Path) -> dict:
         fail(f"Parlo APK named by metadata is not published: {rel}")
     if apk.stat().st_size != metadata.get("size") or sha(apk) != digest:
         fail("Parlo APK checksum or size disagrees with version metadata")
-    return {"version": version, "href": "/" + rel}
+    return {"version": version, "href": "/" + rel, "rel": rel, "sha256": digest}
 
 def resolve_source(writing_root: Path, relative_source: str) -> Path:
     source = writing_root / relative_source
@@ -264,6 +268,9 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     for rel in STATIC_FILES:
         (staging / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / "static" / rel, staging / rel)
+    shutil.copyfile(staging / parlo["rel"], staging / PARLO_ALIAS)
+    if sha(staging / PARLO_ALIAS) != parlo["sha256"]:
+        fail("Parlo stable alias disagrees with version metadata")
     validate_output(staging, base)
     artifacts = [{"path": p.relative_to(staging).as_posix(), "sha256": sha(p)} for p in sorted(staging.rglob("*")) if p.is_file()]
     sources = [{"path": s["source"], "sha256": sha(s["path"])} for s in sorted([*stories, microblog], key=lambda x: x["source"])]
@@ -271,7 +278,7 @@ def render_site(writing_root: Path, staging: Path, protected: dict, protected_pa
     (staging / "build-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def validate_output(staging: Path, base: str = "") -> None:
-    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "llms.txt", *STATIC_FILES}
+    expected = {"index.html", "o-mnie/index.html", "biblioteka/index.html", "mikroblog/index.html", "opowiadania/index.html", "opowiadania/dobry-ojciec/index.html", "opowiadania/kartka/index.html", "llms.txt", PARLO_ALIAS, *STATIC_FILES}
     actual = {p.relative_to(staging).as_posix() for p in staging.rglob("*") if p.is_file()}
     if actual != expected or any(p.is_symlink() for p in staging.rglob("*")): fail("unexpected publish tree")
     for page in staging.rglob("*.html"):

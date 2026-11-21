@@ -159,3 +159,23 @@ sys.exit(22 if '--fail' in args and status >= 400 else 0)
         text=True, capture_output=True,
     )
     assert result.returncode == expected_exit
+
+
+@pytest.mark.parametrize("value", ["../x=" + "0" * 64, "pobierz/parlo.apk", "pobierz/a b=" + "0" * 64, "pobierz/parlo.apk=" + "0" * 63])
+def test_retire_download_value_is_validated_before_external_commands(tmp_path: Path, value):
+    env = os.environ | {"PATH": str(tmp_path)}
+    result = subprocess.run(["/bin/bash", SCRIPT, "--host", "ubuntu@51.83.199.206", "--yes", "--retire-download", value],
+                            cwd=ROOT, env=env, text=True, capture_output=True)
+    assert result.returncode != 0 and "invalid --retire-download" in result.stderr
+
+
+def test_retire_download_cannot_be_combined_with_rollback(tmp_path: Path):
+    env = os.environ | {"PATH": str(tmp_path)}
+    result = subprocess.run(["/bin/bash", SCRIPT, "--host", "ubuntu@51.83.199.206", "--yes", "--rollback", "20261121T120000Z-0123456789ab",
+                             "--retire-download", "pobierz/parlo.apk=" + "0" * 64], cwd=ROOT, env=env, text=True, capture_output=True)
+    assert result.returncode != 0 and "cannot be combined" in result.stderr
+
+
+def test_retire_download_is_passed_to_the_locked_switch():
+    text = SCRIPT.read_text()
+    assert "backup-$RELEASE_ID'$RETIRE_ARGS\"" in text and 'RETIRE_ARGS+=" --retire $2"' in text
