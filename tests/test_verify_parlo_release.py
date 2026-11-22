@@ -37,7 +37,7 @@ def test_official_release_matches_metadata():
 
 
 @pytest.mark.parametrize("payload, reason", [
-    (release(tag_name="android-native-v0.2.0.8"), "latest stable release is android-native-v0.2.0.8"),
+    (release(tag_name="android-native-v99.0.0.0"), "latest stable release is android-native-v99.0.0.0"),
     (release(prerelease=True), "not a stable"),
     (release(assets=[{"name": "parlo.apk", "size": METADATA["size"], "digest": "sha256:" + "0" * 64}]), "SHA-256"),
     (release(assets=[]), "no single"),
