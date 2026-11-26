@@ -38,7 +38,7 @@ POLISH_MONTHS = ("stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "
 # are always linked at the site root, even from a preview built under a base path.
 ROOT_ONLY_PREFIXES = ("/malowanie-po-numerach/", "/poker/", "/mafia/", "/pobierz/")
 BASE_PATH_RE = re.compile(r"^(/[a-z0-9][a-z0-9-]*)?$")
-STATIC_FILES = ("styles.css", "favicon.svg", "js/privacy.js", "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-1.8.apk", "pobierz/mealspire-wersja.json", "pobierz/parlo-0.2.0.5.apk", "pobierz/parlo-0.2.0.6.apk", "pobierz/parlo-0.2.0.7.apk", "pobierz/parlo-0.2.0.8.apk", "pobierz/parlo-wersja.json")
+STATIC_FILES = ("styles.css", "favicon.svg", "js/privacy.js", "img/jan-sochiera.jpg", "fonts/newsreader.woff2", "fonts/newsreader-italic.woff2", "fonts/OFL.txt", "pobierz/mealspire-1.2.apk", "pobierz/mealspire-1.3.apk", "pobierz/mealspire-1.4.apk", "pobierz/mealspire-1.5.apk", "pobierz/mealspire-1.6.apk", "pobierz/mealspire-1.7.apk", "pobierz/mealspire-1.8.apk", "pobierz/mealspire-1.9.apk", "pobierz/mealspire-1.10.apk", "pobierz/mealspire-wersja.json", "pobierz/parlo-0.2.0.5.apk", "pobierz/parlo-0.2.0.6.apk", "pobierz/parlo-0.2.0.7.apk", "pobierz/parlo-0.2.0.8.apk", "pobierz/parlo-0.2.0.9.apk", "pobierz/parlo-0.2.0.10.apk", "pobierz/parlo-wersja.json")
 # Single source for the linked Parlo APK: the homepage anchor, the published file and
 # the deploy/acceptance checks all read static/pobierz/parlo-wersja.json.
 PARLO_METADATA = "pobierz/parlo-wersja.json"

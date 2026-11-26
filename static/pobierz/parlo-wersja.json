@@ -1,8 +1,8 @@
 {
-  "versionName": "0.2.0.8",
-  "releaseTag": "android-native-v0.2.0.8",
-  "releaseUrl": "https://github.com/sochiera/italiano/releases/tag/android-native-v0.2.0.8",
+  "versionName": "0.2.0.10",
+  "releaseTag": "android-native-v0.2.0.10",
+  "releaseUrl": "https://github.com/sochiera/italiano/releases/tag/android-native-v0.2.0.10",
   "assetName": "parlo.apk",
-  "size": 6734436,
-  "sha256": "577dc4db69371197f032f5a19dccb55856c04309dea59cbe27dd3668382878eb"
+  "size": 7083587,
+  "sha256": "45ab440709deac54e4fa486bd05a712eabc8d7d3ff17809fba896e027b4c62c8"
 }
